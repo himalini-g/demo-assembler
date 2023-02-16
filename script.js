@@ -1,5 +1,33 @@
 var element = document.getElementById("svgElement");
-
+class Line {
+    constructor(fill, stroke, strokeWidth) {
+        this.fill = fill;
+        this.strokeWidth = strokeWidth;
+        this.stroke = stroke;
+        this.points = [];
+        this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        this.path.setAttribute("fill", this.fill);
+        this.path.setAttribute("stroke", this.stroke);
+        this.path.setAttribute("stroke-width",this.strokeWidth);
+        this.debug();
+    }
+    appendPoint(point){
+        this.points.push(point);
+        this.path.setAttribute("d", this.toString());
+        this.debug();
+    }
+    toString(){
+        var svgString = this.points.reduce(function(str, point){
+            str += " L" + point.x + " " + point.y;
+            return str;
+        }, "");
+        svgString = "M" + svgString.slice(2);
+        return svgString;
+    }
+    debug(){
+        console.log(this.points);
+    }
+}
 
 class Svg {
     constructor(element) {
@@ -7,9 +35,9 @@ class Svg {
       this.element = element;
       this.parentRect = element.getBoundingClientRect();
       this.strokeWidth = 2;
-      this.strPath = "";
       this.fill = "none";
-      this.path = "";
+      this.lines = [];
+      
       this.stroke = "#000";
     }
     downloadSVG(){
@@ -32,26 +60,21 @@ function downloadSVG(){
 }
 
 element.addEventListener("mousedown", function (e) {
-    svg.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    svg.path.setAttribute("fill", svg.fill);
-    svg.path.setAttribute("stroke", svg.stroke);
-    svg.path.setAttribute("stroke-width",svg.strokeWidth );
+    var lineObj = new Line(svg.fill, svg.stroke, svg.strokeWidth);
     var pt = getMousePosition(e);
-    svg.strPath = "M" + pt.x + " " + pt.y;
-    svg.path.setAttribute("d", svg.strPath);
-    this.appendChild(svg.path);
+    lineObj.appendPoint(pt);
+    this.appendChild(lineObj.path);
+    svg.lines.push(lineObj);
 });
 
 element.addEventListener("mousemove", function (e) {
-    if (svg.path) {
-        updateSvgPath(getMousePosition(e));
-    }
+  
+    updateSvgPath(getMousePosition(e));
+
 });
 
 element.addEventListener("mouseup", function () {
-    if (svg.path) {
-        svg.path = null;
-    }
+
 });
 
 var getMousePosition = function (e) {
@@ -63,8 +86,10 @@ var getMousePosition = function (e) {
 
 
 var updateSvgPath = function (p) {
-    var tmpPath = svg.strPath +" L" + p.x + " " + p.y;
+    var line = svg.lines.pop();
+    line.appendPoint(p);
     
-    svg.path.setAttribute("d", svg.strPath + tmpPath);
-    svg.strPath = tmpPath;
+    line.path.setAttribute("d", line.toString());
+    svg.lines.push(line);
+   
 };
