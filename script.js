@@ -4,9 +4,10 @@ var element = document.getElementById("svgElement");
 var mode = document.getElementById("mode");
 var drawMode = "draw"
 var deleteMode = "delete"
+var selectMode = "select"
 
 class Line {
-    constructor() {
+    constructor(ID) {
         this.fill = "none";
         this.strokeWidth = 2;
         this.stroke = "#000";
@@ -15,6 +16,7 @@ class Line {
         this.path.setAttribute("fill", this.fill);
         this.path.setAttribute("stroke", this.stroke);
         this.path.setAttribute("stroke-width",this.strokeWidth);
+        this.path.id = "stroke_" + ID.toString();
     }
     appendPoint(point){
         this.points.push(point);
@@ -39,6 +41,7 @@ class Line {
 class Svg {
     constructor(element) {
       this.name = "svg"
+      this.uniqueID = 1;
       this.element = element;
       this.parentRect = element.getBoundingClientRect();
       this.lines = [];
@@ -52,10 +55,14 @@ class Svg {
             x: point.pageX - svg.parentRect.left,
             y: point.pageY - svg.parentRect.top
         }
-
+    }
+    validID(){
+        var ID = this.uniqueID;
+        this.uniqueID += 1;
+        return ID;
     }
     addLine(point){
-        var line = new Line();
+        var line = new Line(this.validID());
         var relativePoint = this.relativeMousePosition(point);
         line.appendPoint(relativePoint);
         this.element.appendChild(line.path);
@@ -104,49 +111,88 @@ class Svg {
         document.body.removeChild(downloadLink);
     } 
 }
+class Select{
+    constructor(svg){
+        this.svg = svg
+        this.selectionBox =  document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        this.selectionBox.setAttribute('style', "fill: none; stroke: cadetblue; stroke-width: 2;")
+        this.svg.element.appendChild(this.selectionBox);
+        this.selected = []
+        this.selectionLeftTopCorner = {
+            x:0,
+            y:0
+        };
+        this.selectionBottomRightCorner = {
+            x:0,
+            y:0
+        };
+    }
+    applyAction(action){
+        action(this.selected)
+    }
+    getSelectedLines(){
+    }
+    startSelection(e){
+        this.selectionLeftTopCorner = svg.relativeMousePosition(e);
+        this.selectionBox.setAttribute('x', this.selectionLeftTopCorner.x);
+        this.selectionBox.setAttribute('y', this.selectionLeftTopCorner.y);
+    }
+    updateSelection(e){
+        this.selectionBottomRightCorner = svg.relativeMousePosition(e);
+        this.selectionBox.setAttribute('width',this.selectionBottomRightCorner.x - this.selectionLeftTopCorner.x);
+        this.selectionBox.setAttribute('height', this.selectionBottomRightCorner.y - this.selectionLeftTopCorner.y);
+        console.log(this.selectionBox);
+
+    }
+    resetSelection(){
+        this.selected = []
+        this.selectionLeftTopCorner = {
+            x:0,
+            y:0
+        };
+        this.selectionBottomRightCorner = {
+            x:0,
+            y:0
+        };
+    }
+
+}
 
 var svg = new Svg(element);
+var select = new Select(svg);
 
 function downloadSVG(){
     svg.downloadSVG();
 }
 
 element.addEventListener("mousedown", function (e) {
+    svg.pressed = true;
     if(svg.mode == drawMode){
         svg.addLine(e);
-        svg.pressed = true;
     } else if(svg.mode === deleteMode){
-        svg.pressed = false;
         svg.deleteMousePressed(e);
-
+    } else if(svg.mode === selectMode){
+        select.startSelection(e);
     }
 });
 
 element.addEventListener("mousemove", function (e) {
     if(svg.pressed && svg.mode == drawMode){
-        svg.updateSvgPath(e);
-    } else if(svg.mode === deleteMode){
-        svg.pressed = false;
-        
+        svg.updateSvgPath(e); 
+    } else if (svg.pressed && svg.mode == selectMode){
+        select.updateSelection(e);
     }
 });
 
 element.addEventListener("mouseup", function () {
-    if(svg.pressed && svg.mode == drawMode){
-        svg.pressed = false;
-    } else if(svg.mode === deleteMode){
-        svg.pressed = false;
-    }
+    svg.pressed = false;
 });
 
-mode.addEventListener("toggle", function () {
-    console.log("hello");
-});
 
 function changeMode(){
     console.log(mode.value);
     svg.mode = mode.value;
-    // console.log(svg.element.pathSegList());
+
 }
 
 
@@ -157,7 +203,7 @@ function changeMode(){
 
 function sqr(x) { return x * x }
 function dist2(v, w) { return sqr(v.x - w.x) + sqr(v.y - w.y) }
-// export function pDistance(x, y, x1, y1, x2, y2) {
+
 
 function minDistanceToLine(point, line){
     if(line.length < 2){
