@@ -7,11 +7,17 @@
   <body>
     <div id="divSmoothingFactor">
     <button onclick="downloadSVG()">download svg</button>
+    THis like changes modes n shee:
+    <select name="mode" id="mode" onchange="changeMode()">
+        
+        <option value="draw">Draw</option>
+        <option value="delete">Delete</option>
+        <!-- <option value="joinery">Joinery</option> -->
+      </select>
     </div>
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="svgElement" x="0px" y="0px" width="600px" height="400px" viewBox="0 0 600 400" enable-background="new 0 0 600 400" xml:space="preserve">
-        </svg>
-    <main>
-    </main>
+    </svg>
     <script src="script.js"></script>
+    <script type="module" src="utils.js"></script>
   </body>
 </html>
