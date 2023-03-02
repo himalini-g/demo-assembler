@@ -6,10 +6,10 @@ var drawMode = "draw"
 var deleteMode = "delete"
 
 class Line {
-    constructor(fill, stroke, strokeWidth) {
-        this.fill = fill;
-        this.strokeWidth = strokeWidth;
-        this.stroke = stroke;
+    constructor() {
+        this.fill = "none";
+        this.strokeWidth = 2;
+        this.stroke = "#000";
         this.points = [];
         this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         this.path.setAttribute("fill", this.fill);
@@ -18,6 +18,9 @@ class Line {
     }
     appendPoint(point){
         this.points.push(point);
+        this.path.setAttribute("d", this.toString());
+    }
+    reRender(){
         this.path.setAttribute("d", this.toString());
     }
     toString(){
@@ -38,27 +41,57 @@ class Svg {
       this.name = "svg"
       this.element = element;
       this.parentRect = element.getBoundingClientRect();
-      this.strokeWidth = 2;
-      this.fill = "none";
       this.lines = [];
       this.pressed = false;
+      this.tolerance = 5.0;
       this.mode = drawMode;
-      this.stroke = "#000";
+      
     }
-    
+    relativeMousePosition(point){
+        return {
+            x: point.pageX - svg.parentRect.left,
+            y: point.pageY - svg.parentRect.top
+        }
+
+    }
     addLine(point){
-        var lineObj = new Line(this.fill, this.stroke, this.strokeWidth);
-        lineObj.appendPoint(point);
-        this.element.appendChild(lineObj.path);
-        this.lines.push(lineObj);
+        var line = new Line();
+        var relativePoint = this.relativeMousePosition(point);
+        line.appendPoint(relativePoint);
+        this.element.appendChild(line.path);
+        this.lines.push(line);
+    }
+    reRender(){
+        this.element.innerHTML = ""
+        this.lines.map(line => {
+            this.element.appendChild(line.path);
+            line.reRender();
+        })
     }
     updateSvgPath(point) {
         var line = svg.lines.pop();
-        line.appendPoint(point);
-        line.path.setAttribute("d", line.toString());
+        var relativePoint = this.relativeMousePosition(point);
+        line.appendPoint(relativePoint);
         this.lines.push(line);
        
     }
+
+    deleteMousePressed(point){
+        var relativePoint = this.relativeMousePosition(point);
+        console.log(this.lines)
+        this.lines = this.lines.reduce((acc, curLine) => 
+        {
+            var minDistance = minDistanceToLine(relativePoint, curLine.points);
+            console.log(minDistance);
+            if(minDistance > this.tolerance){
+                console.log(curLine.toString())
+                acc.push(curLine);
+            }
+            return acc;
+        }, []);
+        this.reRender();
+    }
+    
 
     downloadSVG(){
         var preface = '<?xml version="1.0" standalone="no"?>\r\n';
@@ -72,16 +105,6 @@ class Svg {
     } 
 }
 
-
-class Mode{
-    constructor(drawModeMouseDown, deleteModeMouseDown){
-        this.drawMode = "draw"
-        this.deleteMode = "delete"
-        this.activeMode = this.drawMode;
-        this.drawModeMouseDown = drawModeMouseDown;
-        this.deleteModeMouseDown  = deleteModeMouseDown;
-    }
-}
 var svg = new Svg(element);
 
 function downloadSVG(){
@@ -90,22 +113,20 @@ function downloadSVG(){
 
 element.addEventListener("mousedown", function (e) {
     if(svg.mode == drawMode){
-        svg.addLine(getMousePosition(e));
+        svg.addLine(e);
         svg.pressed = true;
     } else if(svg.mode === deleteMode){
         svg.pressed = false;
-        console.log('wrong mode!');
-        deleteMousePressed(getMousePosition(e));
+        svg.deleteMousePressed(e);
 
     }
 });
 
 element.addEventListener("mousemove", function (e) {
     if(svg.pressed && svg.mode == drawMode){
-        svg.updateSvgPath(getMousePosition(e));
+        svg.updateSvgPath(e);
     } else if(svg.mode === deleteMode){
         svg.pressed = false;
-        console.log('wrong mode!');
         
     }
 });
@@ -115,18 +136,9 @@ element.addEventListener("mouseup", function () {
         svg.pressed = false;
     } else if(svg.mode === deleteMode){
         svg.pressed = false;
-        console.log('wrong mode!');
-        
     }
 });
 
-function getMousePosition(e) {
-    console.log(e)
-    return {
-        x: e.pageX - svg.parentRect.left,
-        y: e.pageY - svg.parentRect.top
-    }
-};
 mode.addEventListener("toggle", function () {
     console.log("hello");
 });
@@ -134,10 +146,9 @@ mode.addEventListener("toggle", function () {
 function changeMode(){
     console.log(mode.value);
     svg.mode = mode.value;
+    // console.log(svg.element.pathSegList());
 }
 
-function deleteMousePressed(point){
-}
 
 
 
@@ -147,6 +158,20 @@ function deleteMousePressed(point){
 function sqr(x) { return x * x }
 function dist2(v, w) { return sqr(v.x - w.x) + sqr(v.y - w.y) }
 // export function pDistance(x, y, x1, y1, x2, y2) {
+
+function minDistanceToLine(point, line){
+    if(line.length < 2){
+        return 99999999.0;
+    }
+    var minDistance = 99999999.0;
+    for(var i = 0; i < line.length - 1; i++){
+        var curDistance = distanceToLineSegment(point, line[i], line[i+1]);
+        if(curDistance < minDistance){
+            minDistance = curDistance;
+        }
+    }
+    return minDistance;
+}
 function distanceToLineSegment(point, linePoint1, linePoint2) {
     var x = point.x;
     var y = point.y;
