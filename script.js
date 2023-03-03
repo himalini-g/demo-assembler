@@ -170,7 +170,10 @@ class Select{
         this.svg = svg
         this.selectionCss = 'path-selection'
         this.selectionBox =  document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        this.selectionBox.setAttribute('style', "fill: none; stroke: cadetblue; stroke-width: 2;")
+        this.selectionBox.setAttribute('fill', 'none')
+        this.selectionBox.setAttribute('stroke','gray')
+        this.selectionBox.setAttribute('stroke-width', 1)
+        this.selectionBox.setAttribute('stroke-dasharray', 4);
         this.svg.element.appendChild(this.selectionBox);
         this.selected = []
         this.originalLeftTopCorner = {
@@ -190,7 +193,7 @@ class Select{
         return this.selected.length > 0;
     }
     
-    getSelectedLines(){
+    setSelectedLines(){
         this.selected = this.svg.getLinesInRect([this.selectionLeftTopCorner, this.selectionBottomRightCorner ]);
         console.log(this.selected);
         this.removeCSS();
@@ -210,8 +213,15 @@ class Select{
     startSelection(e){
         this.selectionLeftTopCorner = svg.relativeMousePosition(e);
         this.originalLeftTopCorner = svg.relativeMousePosition(e);
+        this.selectionBottomRightCorner = svg.relativeMousePosition(e);
+        this.setSelectionBox();
+
+    }
+    setSelectionBox(){
         this.selectionBox.setAttribute('x', this.selectionLeftTopCorner.x);
         this.selectionBox.setAttribute('y', this.selectionLeftTopCorner.y);
+        this.selectionBox.setAttribute('width',this.selectionBottomRightCorner.x - this.selectionLeftTopCorner.x);
+        this.selectionBox.setAttribute('height', this.selectionBottomRightCorner.y - this.selectionLeftTopCorner.y);
     }
 
     updateSelection(e){
@@ -228,12 +238,9 @@ class Select{
             x: maxX,
             y: maxY,
         }
-
-        this.selectionBox.setAttribute('x', this.selectionLeftTopCorner.x);
-        this.selectionBox.setAttribute('y', this.selectionLeftTopCorner.y);
-        this.selectionBox.setAttribute('width',this.selectionBottomRightCorner.x - this.selectionLeftTopCorner.x);
-        this.selectionBox.setAttribute('height', this.selectionBottomRightCorner.y - this.selectionLeftTopCorner.y);
-        this.getSelectedLines();
+     
+        this.setSelectionBox();
+        this.setSelectedLines();
 
     }
     removeCSS(){
@@ -245,7 +252,11 @@ class Select{
     }
     resetSelection(){
         this.removeCSS();
-        this.selected = []
+        this.selected = [];
+        this.resetSelectionBox();
+        
+    }
+    resetSelectionBox(){
         this.originalLeftTopCorner = {
             x:0,
             y:0
@@ -258,6 +269,8 @@ class Select{
             x:0,
             y:0
         };
+        this.setSelectionBox();
+
     }
 
 }
@@ -278,7 +291,6 @@ element.addEventListener("mousedown", function (e) {
         svg.deleteMousePressed(e);
     } else if(svg.mode === selectMode){
         select.resetSelection();
-        console.log(select.clickInSelected(e));
         select.startSelection(e);
     }
 });
@@ -297,6 +309,10 @@ element.addEventListener("mousemove", function (e) {
 element.addEventListener("mouseup", function () {
     pressed = false;
     dragged = false;
+    if(svg.mode == selectMode){
+        select.resetSelectionBox();
+    }
+    
 });
 
 
