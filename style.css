@@ -10,3 +10,6 @@ html, body
     margin-left: 4px;
     cursor: default;
 }
+.path-selection {
+    outline: 1px solid blue;
+}

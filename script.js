@@ -5,6 +5,9 @@ var mode = document.getElementById("mode");
 var drawMode = "draw"
 var deleteMode = "delete"
 var selectMode = "select"
+var pressed = false;
+var dragged = false;
+
 
 class Line {
     constructor(ID) {
@@ -21,6 +24,36 @@ class Line {
     appendPoint(point){
         this.points.push(point);
         this.path.setAttribute("d", this.toString());
+    }
+    getID(){
+        return this.path.id;
+    }
+    pointInRect(point){
+        var lineRect = get_bbox(this.points);
+        if((lineRect[0].x <= point.x && point.x <=lineRect[1].x ) && (lineRect[0].y <= point.y && point.y <= lineRect[1].y)){
+            return true;
+        }
+        return false;
+
+    }
+    inRect(rect){
+        var lineRect = get_bbox(this.points);
+ 
+        if (rect[0].x == rect[1].x || rect[0].y == rect[1].y || lineRect[1].x == lineRect[0].x || lineRect[0].y == lineRect[1].y){
+            return false;
+        }
+            
+        // If one rectangle is on left side of other
+        if (rect[0].x > lineRect[1].x || lineRect[0].x > rect[1].x) {
+            return false;
+        }
+
+        // If one rectangle is above other
+        if (rect[1].y < lineRect[0].y || lineRect[1].y < rect[0].y) {
+            return false;
+        }
+     
+        return true;
     }
     reRender(){
         this.path.setAttribute("d", this.toString());
@@ -68,6 +101,10 @@ class Svg {
         this.element.appendChild(line.path);
         this.lines.push(line);
     }
+    getAllIDs(){
+        var allIDs = this.lines.map(line => line.getID());
+        return allIDs;
+    }
     reRender(){
         this.element.innerHTML = ""
         this.lines.map(line => {
@@ -82,10 +119,27 @@ class Svg {
         this.lines.push(line);
        
     }
+    getLinesInPoint(point){
+        var selectedIDs = this.lines.reduce((acc, curLine) => {
+            if(curLine.pointInRect(point)){
+                acc.push(curLine.getID())
+            }
+            return acc;
+        }, []);
+        return selectedIDs;
+    }
+    getLinesInRect(rect){
+        var selectedIDs = this.lines.reduce((acc, curLine) => {
+            if(curLine.inRect(rect)){
+                acc.push(curLine.getID())
+            }
+            return acc;
+        }, []);
+        return selectedIDs;
+    }
 
     deleteMousePressed(point){
         var relativePoint = this.relativeMousePosition(point);
-        console.log(this.lines)
         this.lines = this.lines.reduce((acc, curLine) => 
         {
             var minDistance = minDistanceToLine(relativePoint, curLine.points);
@@ -114,10 +168,15 @@ class Svg {
 class Select{
     constructor(svg){
         this.svg = svg
+        this.selectionCss = 'path-selection'
         this.selectionBox =  document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         this.selectionBox.setAttribute('style', "fill: none; stroke: cadetblue; stroke-width: 2;")
         this.svg.element.appendChild(this.selectionBox);
         this.selected = []
+        this.originalLeftTopCorner = {
+            x:0,
+            y:0
+        };
         this.selectionLeftTopCorner = {
             x:0,
             y:0
@@ -127,25 +186,70 @@ class Select{
             y:0
         };
     }
-    applyAction(action){
-        action(this.selected)
+    isSelected(){
+        return this.selected.length > 0;
     }
+    
     getSelectedLines(){
+        this.selected = this.svg.getLinesInRect([this.selectionLeftTopCorner, this.selectionBottomRightCorner ]);
+        console.log(this.selected);
+        this.removeCSS();
+        for(var i = 0; i < this.selected.length; i++){
+            var lineElement = document.getElementById(this.selected[i]);
+            lineElement.classList.add(this.selectionCss);
+        }
+    }
+    clickInSelected(e){
+        var point = svg.relativeMousePosition(e);
+        var potentialIDs = svg.getLinesInPoint(point);
+        const found = potentialIDs.some(r=> this.selected.includes(r))
+        return found;
+
+
     }
     startSelection(e){
         this.selectionLeftTopCorner = svg.relativeMousePosition(e);
+        this.originalLeftTopCorner = svg.relativeMousePosition(e);
         this.selectionBox.setAttribute('x', this.selectionLeftTopCorner.x);
         this.selectionBox.setAttribute('y', this.selectionLeftTopCorner.y);
     }
+
     updateSelection(e){
-        this.selectionBottomRightCorner = svg.relativeMousePosition(e);
+        var newCorner = svg.relativeMousePosition(e);
+        var [minX, maxX] = [Math.min(newCorner.x, this.originalLeftTopCorner.x), Math.max(newCorner.x, this.originalLeftTopCorner.x)];
+        var [minY, maxY] = [Math.min(newCorner.y, this.originalLeftTopCorner.y), Math.max(newCorner.y, this.originalLeftTopCorner.y)];
+
+        this.selectionLeftTopCorner = {
+            x: minX,
+            y: minY,
+        }
+
+        this.selectionBottomRightCorner = {
+            x: maxX,
+            y: maxY,
+        }
+
+        this.selectionBox.setAttribute('x', this.selectionLeftTopCorner.x);
+        this.selectionBox.setAttribute('y', this.selectionLeftTopCorner.y);
         this.selectionBox.setAttribute('width',this.selectionBottomRightCorner.x - this.selectionLeftTopCorner.x);
         this.selectionBox.setAttribute('height', this.selectionBottomRightCorner.y - this.selectionLeftTopCorner.y);
-        console.log(this.selectionBox);
+        this.getSelectedLines();
 
     }
+    removeCSS(){
+        var allIDs = svg.getAllIDs();
+        for(var i = 0; i < allIDs.length; i++){
+            var lineElement = document.getElementById(allIDs[i]);
+            lineElement.classList.remove(this.selectionCss);
+        }
+    }
     resetSelection(){
+        this.removeCSS();
         this.selected = []
+        this.originalLeftTopCorner = {
+            x:0,
+            y:0
+        };
         this.selectionLeftTopCorner = {
             x:0,
             y:0
@@ -166,26 +270,33 @@ function downloadSVG(){
 }
 
 element.addEventListener("mousedown", function (e) {
-    svg.pressed = true;
+    pressed = true;
+    
     if(svg.mode == drawMode){
         svg.addLine(e);
     } else if(svg.mode === deleteMode){
         svg.deleteMousePressed(e);
     } else if(svg.mode === selectMode){
+        select.resetSelection();
+        console.log(select.clickInSelected(e));
         select.startSelection(e);
     }
 });
 
 element.addEventListener("mousemove", function (e) {
-    if(svg.pressed && svg.mode == drawMode){
+    if(pressed){
+        dragged = true;
+    }
+    if(pressed && svg.mode == drawMode){
         svg.updateSvgPath(e); 
-    } else if (svg.pressed && svg.mode == selectMode){
+    } else if (pressed && svg.mode == selectMode){
         select.updateSelection(e);
     }
 });
 
 element.addEventListener("mouseup", function () {
-    svg.pressed = false;
+    pressed = false;
+    dragged = false;
 });
 
 
@@ -194,9 +305,6 @@ function changeMode(){
     svg.mode = mode.value;
 
 }
-
-
-
 
 
 // https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
@@ -257,3 +365,19 @@ function distanceToLineSegment(point, linePoint1, linePoint2) {
     var dy = y - yy;
     return Math.sqrt(dx * dx + dy * dy);
 }
+//https://github.com/LingDong-/fishdraw/blob/main/fishdraw.js
+function get_bbox(points){
+    let xmin = Infinity;
+    let ymin = Infinity;
+    let xmax = -Infinity;
+    let ymax = -Infinity
+    for (let i = 0;i < points.length; i++){
+      let x = points[i].x;
+      let y = points[i].y;
+      xmin = Math.min(xmin,x);
+      ymin = Math.min(ymin,y);
+      xmax = Math.max(xmax,x);
+      ymax = Math.max(ymax,y);
+    }
+    return [{x:xmin,y:ymin},{x:xmax,y:ymax}];
+  }
