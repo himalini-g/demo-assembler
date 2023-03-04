@@ -124,10 +124,13 @@ class Svg {
         this.lines.push(line);
        
     }
-    moveLines(vec){
+    moveLines(lineIDs, vec){
+        var lineDict = new Map();
+        
         this.lines.map(line => {
-            line.moveByVector(vec);
+            lineDict.set(line.getID(), line);
         });
+        lineIDs.map(id => lineDict.get(id).moveByVector(vec));
     }
     getLinesInPoint(point){
         var selectedIDs = this.lines.reduce((acc, curLine) => {
@@ -265,7 +268,7 @@ class Select{
     mouseMoveHandler(e){
         if(this.clickedInSelection){
             this.updateSelection(e);
-            this.svg.moveLines(this.moveVec);
+            this.svg.moveLines(this.selected, this.moveVec);
             this.svg.reRender();
         } else {
             this.updateSelection(e);
@@ -278,6 +281,7 @@ class Select{
         var point = svg.relativeMousePosition(e);
         var [minX, maxX] = [Math.min(point.x, this.originalLeftTopCorner.x), Math.max(point.x, this.originalLeftTopCorner.x)];
         var [minY, maxY] = [Math.min(point.y, this.originalLeftTopCorner.y), Math.max(point.y, this.originalLeftTopCorner.y)];
+  
         this.moveVec = {
             x: point.x -  this.oldCursorPosition.x,
             y: point.y -  this.oldCursorPosition.y,
