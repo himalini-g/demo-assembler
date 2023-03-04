@@ -42,7 +42,6 @@ class Line {
         if (rect[0].x == rect[1].x || rect[0].y == rect[1].y || lineRect[1].x == lineRect[0].x || lineRect[0].y == lineRect[1].y){
             return false;
         }
-            
         // If one rectangle is on left side of other
         if (rect[0].x > lineRect[1].x || lineRect[0].x > rect[1].x) {
             return false;
@@ -58,6 +57,15 @@ class Line {
     reRender(){
         this.path.setAttribute("d", this.toString());
     }
+    moveByVector(vec){
+        this.points = this.points.map(point => {
+            return {
+                x: point.x + vec.x, 
+                y: point.y + vec.y,
+            };
+        })
+
+    }
     toString(){
         var svgString = this.points.reduce(function(str, point){
             str += " L" + point.x + " " + point.y;
@@ -65,9 +73,6 @@ class Line {
         }, "");
         svgString = "M" + svgString.slice(2);
         return svgString;
-    }
-    debug(){
-        console.log(this.points);
     }
 }
 
@@ -118,6 +123,11 @@ class Svg {
         line.appendPoint(relativePoint);
         this.lines.push(line);
        
+    }
+    moveLines(vec){
+        this.lines.map(line => {
+            line.moveByVector(vec);
+        });
     }
     getLinesInPoint(point){
         var selectedIDs = this.lines.reduce((acc, curLine) => {
@@ -175,7 +185,16 @@ class Select{
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
         this.svg.element.appendChild(this.selectionBox);
-        this.selected = []
+        this.selected = [];
+        this.moveVec = {
+            x:0,
+            y:0
+        };
+        this.clickedInSelection = false;
+        this.oldCursorPosition = {
+            x:0,
+            y:0
+        };
         this.originalLeftTopCorner = {
             x:0,
             y:0
@@ -192,10 +211,22 @@ class Select{
     isSelected(){
         return this.selected.length > 0;
     }
-    
+    mouseDownHandler(e){
+        // click is in the selected boxes
+        if(this.isSelected() && this.clickInSelected(e)){
+            this.clickedInSelection = true;
+            this.startSelection(e);
+        // click is outside the selection, therefore start new selection
+        } else{
+            this.resetSelection();
+            this.startSelection(e);
+        }
+
+    }
+
     setSelectedLines(){
         this.selected = this.svg.getLinesInRect([this.selectionLeftTopCorner, this.selectionBottomRightCorner ]);
-        console.log(this.selected);
+ 
         this.removeCSS();
         for(var i = 0; i < this.selected.length; i++){
             var lineElement = document.getElementById(this.selected[i]);
@@ -203,6 +234,9 @@ class Select{
         }
     }
     clickInSelected(e){
+        if(!this.isSelected()){
+            return false;
+        }
         var point = svg.relativeMousePosition(e);
         var potentialIDs = svg.getLinesInPoint(point);
         const found = potentialIDs.some(r=> this.selected.includes(r))
@@ -211,6 +245,11 @@ class Select{
 
     }
     startSelection(e){
+        this.moveVec = {
+            x: 0, 
+            y: 0,
+        };
+        this.oldCursorPosition = svg.relativeMousePosition(e);
         this.selectionLeftTopCorner = svg.relativeMousePosition(e);
         this.originalLeftTopCorner = svg.relativeMousePosition(e);
         this.selectionBottomRightCorner = svg.relativeMousePosition(e);
@@ -223,24 +262,38 @@ class Select{
         this.selectionBox.setAttribute('width',this.selectionBottomRightCorner.x - this.selectionLeftTopCorner.x);
         this.selectionBox.setAttribute('height', this.selectionBottomRightCorner.y - this.selectionLeftTopCorner.y);
     }
+    mouseMoveHandler(e){
+        if(this.clickedInSelection){
+            this.updateSelection(e);
+            this.svg.moveLines(this.moveVec);
+            this.svg.reRender();
+        } else {
+            this.updateSelection(e);
+            this.setSelectionBox();
+            this.setSelectedLines();
+        }
+    }
 
     updateSelection(e){
-        var newCorner = svg.relativeMousePosition(e);
-        var [minX, maxX] = [Math.min(newCorner.x, this.originalLeftTopCorner.x), Math.max(newCorner.x, this.originalLeftTopCorner.x)];
-        var [minY, maxY] = [Math.min(newCorner.y, this.originalLeftTopCorner.y), Math.max(newCorner.y, this.originalLeftTopCorner.y)];
+        var point = svg.relativeMousePosition(e);
+        var [minX, maxX] = [Math.min(point.x, this.originalLeftTopCorner.x), Math.max(point.x, this.originalLeftTopCorner.x)];
+        var [minY, maxY] = [Math.min(point.y, this.originalLeftTopCorner.y), Math.max(point.y, this.originalLeftTopCorner.y)];
+        this.moveVec = {
+            x: point.x -  this.oldCursorPosition.x,
+            y: point.y -  this.oldCursorPosition.y,
+        }
+
+        this.oldCursorPosition = point;
 
         this.selectionLeftTopCorner = {
             x: minX,
             y: minY,
-        }
+        };
 
         this.selectionBottomRightCorner = {
             x: maxX,
             y: maxY,
-        }
-     
-        this.setSelectionBox();
-        this.setSelectedLines();
+        };
 
     }
     removeCSS(){
@@ -253,7 +306,6 @@ class Select{
     resetSelection(){
         this.removeCSS();
         this.selected = [];
-        this.resetSelectionBox();
         
     }
     resetSelectionBox(){
@@ -284,14 +336,12 @@ function downloadSVG(){
 
 element.addEventListener("mousedown", function (e) {
     pressed = true;
-    
     if(svg.mode == drawMode){
         svg.addLine(e);
     } else if(svg.mode === deleteMode){
         svg.deleteMousePressed(e);
     } else if(svg.mode === selectMode){
-        select.resetSelection();
-        select.startSelection(e);
+        select.mouseDownHandler(e);
     }
 });
 
@@ -302,7 +352,7 @@ element.addEventListener("mousemove", function (e) {
     if(pressed && svg.mode == drawMode){
         svg.updateSvgPath(e); 
     } else if (pressed && svg.mode == selectMode){
-        select.updateSelection(e);
+        select.mouseMoveHandler(e);
     }
 });
 
@@ -310,6 +360,7 @@ element.addEventListener("mouseup", function () {
     pressed = false;
     dragged = false;
     if(svg.mode == selectMode){
+        select.clickedInSelection = false;
         select.resetSelectionBox();
     }
     
