@@ -1,9 +1,26 @@
 // https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
 
-export function sqr(x) { return x * x }
-export function dist2(v, w) { return sqr(v.x - w.x) + sqr(v.y - w.y) }
-// export function pDistance(x, y, x1, y1, x2, y2) {
-export function distanceToLineSegment(point, linePoint1, linePoint2) {
+function sqr(x) { return x * x }
+function dist2(v, w) { 
+    console.log("hrs")
+    return sqr(v.x - w.x) + sqr(v.y - w.y) 
+}
+
+
+function minDistanceToLine(point, line){
+    if(line.length < 2){
+        return 99999999.0;
+    }
+    var minDistance = 99999999.0;
+    for(var i = 0; i < line.length - 1; i++){
+        var curDistance = distanceToLineSegment(point, line[i], line[i+1]);
+        if(curDistance < minDistance){
+            minDistance = curDistance;
+        }
+    }
+    return minDistance;
+}
+function distanceToLineSegment(point, linePoint1, linePoint2) {
     var x = point.x;
     var y = point.y;
     var x1 = linePoint1.x;
@@ -41,4 +58,29 @@ export function distanceToLineSegment(point, linePoint1, linePoint2) {
     var dx = x - xx;
     var dy = y - yy;
     return Math.sqrt(dx * dx + dy * dy);
+}
+//https://github.com/LingDong-/fishdraw/blob/main/fishdraw.js
+function get_bbox(points){
+    let xmin = Infinity;
+    let ymin = Infinity;
+    let xmax = -Infinity;
+    let ymax = -Infinity
+    for (let i = 0;i < points.length; i++){
+      let x = points[i].x;
+      let y = points[i].y;
+      xmin = Math.min(xmin,x);
+      ymin = Math.min(ymin,y);
+      xmax = Math.max(xmax,x);
+      ymax = Math.max(ymax,y);
+    }
+    return [{x:xmin,y:ymin},{x:xmax,y:ymax}];
+  }
+
+if (typeof(module) !== "undefined") {
+	module.exports.sqr = sqr;
+    module.exports.dist2 = dist2;
+    module.exports.minDistanceToLine = minDistanceToLine;
+    module.exports.get_bbox = get_bbox;
+    module.exports.distanceToLineSegment = distanceToLineSegment;
+    
 }

@@ -14,11 +14,19 @@
         <option value="delete">Delete</option>
         <option value="select">Select</option>
         <!-- <option value="joinery">Joinery</option> -->
-      </select>
+    </select>
+    <select name="layer" id="layer" onchange="changeLayer()">
+      <option value="construction">construction</option>
+      <option value="outline">Outline</option>
+      <option value="orient">Orient</option>
+      
+      <!-- <option value="joinery">Joinery</option> -->
+  </select>
     </div>
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="svgElement" x="0px" y="0px" width="600px" height="400px" viewBox="0 0 600 400" enable-background="new 0 0 600 400" xml:space="preserve">
     </svg>
     <script src="script.js"></script>
+    <script src="utils.js"></script>
     <script type="module" src="utils.js"></script>
   </body>
 </html>
