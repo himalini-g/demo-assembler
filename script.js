@@ -116,7 +116,6 @@ class Svg {
         this.uniqueID = 1;
         this.element = element;
         this.parentRect = element.getBoundingClientRect();
-        this.pressed = false;
         this.tolerance = 5.0;
         this.layers = {
             construction: [],
@@ -140,7 +139,6 @@ class Svg {
         var line = this.layers[key].pop();
         line.popPoint();
         this.layers[key].push(line);
-
     }
     relativeMousePosition(point){
         return {
@@ -176,21 +174,15 @@ class Svg {
                 line.reRender();
             });
         }
-        
     }
-    updateLine(point, line){
-        console.log(line, point);
-  
-        var relativePoint = this.relativeMousePosition(point);
-        line.appendPoint(relativePoint);
-    }
-
     updateSvgPath(point) {
         var key = this.activeLayer();
         var line = this.layers[key].pop();
+        var lineID = line.getID()
         var relativePoint = this.relativeMousePosition(point);
         line.appendPoint(relativePoint);
         this.layers[key].push(line);
+        return lineID
        
     }
     moveLines(lineIDs, vec){
@@ -257,18 +249,69 @@ class PenMode{
     }
     mouseDownHandler(e){
         this.mouseDraggedPoint = e;
+        var lineID = null;
         if(!this.addedToLine){
-            this.svg.updateSvgPath(e);
+            lineID = this.svg.updateSvgPath(e);
             this.addedToLine = true;
         } else{
             this.svg.popLinePoint();
-            this.svg.updateSvgPath(e);
+            lineID = this.svg.updateSvgPath(e);
         }
+        return lineID;
 
     }
     mouseUpHandler(){
         this.mouseDraggedPoint = null;
         this.addedToLine = false;
+    }
+}
+class OrientLineMode{
+    constructor(penmode, svg){
+        this.penmode = penmode;
+        this.svg = svg;
+        this.baseLength = 0;
+        this.color = "#00ff00";
+        this.baseID = null;
+    }
+    generatePerp(lineId){
+        const sumPoints = (p1, p2) =>
+            {
+                return  {
+                    x: p1.x + p2.x, 
+                    y: p1.y + p2.y
+                };
+            }
+        var points = this.svg.getPoints(lineId);
+        var pointSum = points.reduce(sumPoints, {x:0, y:0})
+        var average = {
+            x: pointSum.x / points.length,
+            y: pointSum.y / points.length
+        }
+        var vector = {
+            x: points[1].x - points[0].x,
+            y: points[1].y - points[0].y,
+        }
+        var normal = {
+            x: (vector.y * -1) + average.x,
+            y: vector.x  + average.y,
+        }
+        return [average, normal];
+        
+    }
+    mouseDownHandler(e){
+        if(this.baseLength <= 2){
+            this.baseID = this.penmode.mouseDownHandler(e)
+            this.baseLength = this.svg.getLineLength(this.baseID)
+        } else {
+            this.penmode.mouseUpHandler();
+            var [average, normal] = this.generatePerp(this.baseID);
+            this.penmode.mouseDownHandler(average);
+            this.penmode.mouseDownHandler(normal);
+        }
+    }
+    newLine(){
+
+
     }
 }
 class Select{
