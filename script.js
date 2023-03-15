@@ -1,6 +1,7 @@
 
 var resetHTMl = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"svgElement\" x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 600 400\" xml:space=\"preserve\"></svg>"
 
+
 var drawMode = "draw"
 var deleteMode = "delete"
 var selectMode = "select"
@@ -12,14 +13,14 @@ var outlineLayer = "outline"
 var orientLayer = "orient"
 var constructionLayer = "construction"
 var layerSelected = constructionLayer;
-var element;
-var mode;
-var layer;
-var svg;
-var select;
-var outlinemode;
-var orientlinemode;
-var constructionmode;
+var element = null;
+var mode = null;
+var layer = null;
+var svg = null;
+var select = null;
+var outlinemode = null;
+var orientlinemode = null;
+var constructionmode = null;
 var thumbnails = [];
 
 const layerInfo = 
@@ -51,11 +52,14 @@ class Svg {
             this.layerColors[layer.name] = layer.color;
         });
     }
+    setElement(element){
+        this.element = element;
+    }
     setLayer(layer){
         this.layerSelected = layer;
     }
     activeLayer(){
-        return this.layerSelected ;
+        return this.layerSelected;
         
     }
     popLinePoint(lineID){
@@ -489,8 +493,10 @@ function setup(){
     element = document.getElementById("svgElement");
     mode = document.getElementById("mode");
     layer = document.getElementById("layer");
+    if(svg){
+        thumbnails.push(svg);
+    }
     svg = new Svg(element,layerSelected, layerInfo);
-    thumbnails.push(svg);
     console.log(thumbnails);
     select = new Select(svg);
     outlinemode = new OutlineMode(svg);
@@ -541,6 +547,7 @@ function setup(){
         console.log("Double-click detected")
         // Double-click detected
     });
+    renderThumbnails();
 }
 
 function downloadSVG(){
@@ -562,4 +569,21 @@ function changeLayer(){
     layerSelected = layer.value;
     svg.setLayer(layerSelected);
 }
+
+function renderThumbnails(){
+
+    $("#thumbnail-container").html("<div id=\"thumbnails\"></div>");
+    var thumbnail_container = document.getElementById("thumbnails");
+    thumbnails.forEach(function (thumbnail, i)
+    {
+        var id = i.toString() + "_thumbnail";
+        var thumbnailHTML = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"" + id + "\"x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 200 200\" xml:space=\"preserve\"></svg>"
+        $("#thumbnail-container").append(thumbnailHTML)
+        var thumbnail_element = document.getElementById(id);
+        thumbnail.setElement(thumbnail_element);
+        thumbnail.reRender();
+        console.log(thumbnail_container);
+    })
+}
+
 setup();
