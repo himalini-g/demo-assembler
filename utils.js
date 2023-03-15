@@ -2,7 +2,6 @@
 
 function sqr(x) { return x * x }
 function dist2(v, w) { 
-    console.log("hrs")
     return sqr(v.x - w.x) + sqr(v.y - w.y) 
 }
 
