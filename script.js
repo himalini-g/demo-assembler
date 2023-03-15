@@ -96,6 +96,12 @@ class Line {
         }
 
     }
+    getLength(){
+        return this.points.length;
+    }
+    getPoints(){
+        return this.points;
+    }
     toString(){
         var svgString = this.points.reduce(function(str, point){
             str += " L" + point.x + " " + point.y;
@@ -122,13 +128,18 @@ class Svg {
             orient: [],
             outline: [],
         }
-        this.initLayers();
-        console.log(this.layers);
+        this.layerColors = {
+            construction: "#000",
+            outline: "#FF0000",
+            orient: "#00FF00",
+        }
     }
-    initLayers(){
-        var outline = new Line(this.validID(), true, "#FF0000");
+    initOutline(){
+        console.log("initOutline")
+        var outline = new Line(this.validID(), false, this.layerColors.outline);
         this.layers.outline.push(outline);
         this.element.appendChild(outline.path);
+        return outline.getID();
     }
     activeLayer(){
         return layerSelected;
@@ -139,6 +150,7 @@ class Svg {
         var line = this.layers[key].pop();
         line.popPoint();
         this.layers[key].push(line);
+        console.log(this.layers[key].length,  this.layers[key]);
     }
     relativeMousePosition(point){
         return {
@@ -151,15 +163,24 @@ class Svg {
         this.uniqueID += 1;
         return ID;
     }
-    addLine(point){
-        var line = new Line(this.validID(), true);
-  
-        var relativePoint = this.relativeMousePosition(point);
+    addLine(point, pointIsRelative=false){
         var key = this.activeLayer();
-        console.log(key, this.layers);
+        var color = this.layerColors[key];
+        var line = new Line(this.validID(), true, color);
+
+        var relativePoint;
+        if(pointIsRelative){
+            relativePoint = point;
+        } else{
+            relativePoint = this.relativeMousePosition(point);
+        }
+        
+
         line.appendPoint(relativePoint);
         this.element.appendChild(line.path);
         this.layers[key].push(line);
+        console.log(this.layers[key].length,  this.layers[key])
+        return line.getID();
     }
     getAllIDs(){
         var key = this.activeLayer();
@@ -175,23 +196,57 @@ class Svg {
             });
         }
     }
-    updateSvgPath(point) {
+    
+    updateSvgPath(point, lineID=null, pointIsRelative=false) {
         var key = this.activeLayer();
-        var line = this.layers[key].pop();
-        var lineID = line.getID()
-        var relativePoint = this.relativeMousePosition(point);
+        var line;
+        if(lineID != null){
+
+            var lineDict = this.activeLineDict();
+            line = lineDict.get(lineID);
+
+        }
+        else {
+            line = this.layers[key].pop();
+            lineID = line.getID();
+        }
+        
+       
+        var relativePoint;
+        if(pointIsRelative){
+            relativePoint = point;
+        } else{
+            relativePoint = this.relativeMousePosition(point);
+        }
         line.appendPoint(relativePoint);
         this.layers[key].push(line);
-        return lineID
+        console.log(this.layers[key].length,  this.layers[key])
+        return lineID;
        
     }
-    moveLines(lineIDs, vec){
+    activeLineDict(){
         var lineDict = new Map();
         var key = this.activeLayer();
         this.layers[key].map(line => {
             lineDict.set(line.getID(), line);
         });
+        return lineDict;
+
+    }
+    moveLines(lineIDs, vec){
+        var lineDict = this.activeLineDict();
         lineIDs.map(id => lineDict.get(id).moveByVector(vec));
+    }
+    getLineLength(lineID){
+        var lineDict = this.activeLineDict();
+        var line = lineDict.get(lineID);
+        return line.getLength();
+
+    }
+    getLinePoints(lineID) {
+        var lineDict = this.activeLineDict();
+        var line = lineDict.get(lineID);
+        return line.getPoints();
     }
     getLinesInPoint(point){
         var key = this.activeLayer();
@@ -205,6 +260,7 @@ class Svg {
     }
     getLinesInRect(rect){
         var key = this.activeLayer();
+
         var selectedIDs = this.layers[key].reduce((acc, curLine) => {
             if(curLine.inRect(rect)){
                 acc.push(curLine.getID())
@@ -241,47 +297,70 @@ class Svg {
         document.body.removeChild(downloadLink);
     } 
 }
-class PenMode{
+class OutlineMode{
     constructor(svg){
+        this.outlineID = null;
+        this.svg = svg;
+        this.penmode = null;
+    }
+    mouseDownHandler(e){
+        if(this.outlineID == null){
+            this.outlineID = this.svg.initOutline();
+            this.penmode = new PenMode(this.svg, this.outlineID);
+        }
+        this.penmode.mouseDownHandler(e);
+    }
+    mouseUpHandler(e){
+        this.penmode.mouseUpHandler(e);
+    }
+}
+class PenMode{
+    constructor(svg, lineID){
         this.mouseDraggedPoint = null;
         this.addedToLine = false;
         this.svg = svg;
+        this.lineID = lineID;
     }
-    mouseDownHandler(e){
+    mouseDownHandler(e, pointIsRelative=false){
         this.mouseDraggedPoint = e;
-        var lineID = null;
+        
         if(!this.addedToLine){
-            lineID = this.svg.updateSvgPath(e);
+            this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
             this.addedToLine = true;
         } else{
             this.svg.popLinePoint();
-            lineID = this.svg.updateSvgPath(e);
+            this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
         }
-        return lineID;
-
     }
     mouseUpHandler(){
         this.mouseDraggedPoint = null;
         this.addedToLine = false;
     }
 }
-class OrientLineMode{
-    constructor(penmode, svg){
-        this.penmode = penmode;
-        this.svg = svg;
-        this.baseLength = 0;
-        this.color = "#00ff00";
-        this.baseID = null;
+class ConstructionMode{
+    constructor(svg){
+        
     }
-    generatePerp(lineId){
+}
+class OrientLineMode{
+    constructor(svg){
+        this.svg = svg;
+        
+        this.color = "#00ff00";
+
+        this.baseLength = null;
+        this.baseID = null;
+        this.curPenMode = null;
+    }
+    generatePerp(lineId, e){
         const sumPoints = (p1, p2) =>
-            {
-                return  {
-                    x: p1.x + p2.x, 
-                    y: p1.y + p2.y
-                };
-            }
-        var points = this.svg.getPoints(lineId);
+        {
+            return  {
+                x: p1.x + p2.x, 
+                y: p1.y + p2.y
+            };
+        }
+        var points = this.svg.getLinePoints(lineId);
         var pointSum = points.reduce(sumPoints, {x:0, y:0})
         var average = {
             x: pointSum.x / points.length,
@@ -291,27 +370,59 @@ class OrientLineMode{
             x: points[1].x - points[0].x,
             y: points[1].y - points[0].y,
         }
-        var normal = {
+        var normal1 = {
             x: (vector.y * -1) + average.x,
             y: vector.x  + average.y,
         }
-        return [average, normal];
-        
+        var normal2 = {
+            x: vector.y + average.x,
+            y: (vector.x * -1)  + average.y,
+        }
+
+        var relativePoint = this.svg.relativeMousePosition(e);
+        var distNormal2 = dist2(relativePoint, normal2);
+        var distNormal1 = dist2(relativePoint, normal1);
+        if(distNormal1 < distNormal2){
+            return [average, normal1];
+        }
+        return [average, normal2];
     }
+   
     mouseDownHandler(e){
-        if(this.baseLength <= 2){
-            this.baseID = this.penmode.mouseDownHandler(e)
-            this.baseLength = this.svg.getLineLength(this.baseID)
-        } else {
-            this.penmode.mouseUpHandler();
-            var [average, normal] = this.generatePerp(this.baseID);
-            this.penmode.mouseDownHandler(average);
-            this.penmode.mouseDownHandler(normal);
+        if(this.baseID == null){
+            this.baseID = this.svg.addLine(e);
+            this.curPenMode = new PenMode(this.svg, this.baseID);  
+            this.curPenMode.mouseDownHandler(e);
+        }
+        else if(this.baseID != null && this.baseLength <= 1){
+
+            this.curPenMode.mouseDownHandler(e);
+        }
+        else{
+            var [average, normal] = this.generatePerp(this.baseID, e);
+            var perpID = this.svg.addLine(average, true);
+            var perpPenMode= new PenMode(this.svg, perpID);
+            perpPenMode.mouseDownHandler(normal, true);
+            perpPenMode.mouseUpHandler();
+            
+            this.baseID = null;
+            this.baseLength = null;
+            this.curPenMode = null;
+
+        }
+       
+    }
+    mouseMoveHandler(e){
+        if(this.curPenMode != null){
+            this.curPenMode.mouseDownHandler(e);
         }
     }
-    newLine(){
-
-
+    mouseUpHandler(){
+        
+        if(this.curPenMode != null){
+            this.baseLength = this.svg.getLineLength(this.baseID);
+            this.curPenMode.mouseUpHandler();
+        }
     }
 }
 class Select{
@@ -409,6 +520,7 @@ class Select{
     mouseMoveHandler(e){
         if(this.clickedInSelection){
             this.updateSelection(e);
+            // console.log(this.moveVec, this.selected);
             this.svg.moveLines(this.selected, this.moveVec);
             this.svg.reRender();
             this.svg.element.appendChild(this.selectionBox);
@@ -475,7 +587,9 @@ class Select{
 
 var svg = new Svg(element);
 var select = new Select(svg);
-var penmode = new PenMode(svg);
+var outlinemode = new OutlineMode(svg);
+var orientlinemode = new OrientLineMode(svg);
+// var outlinemode = new OutlineMode(penmode, svg);
 
 function downloadSVG(){
     svg.downloadSVG();
@@ -488,7 +602,9 @@ element.addEventListener("mousedown", function (e) {
     } else if(setMode === selectMode){
         select.mouseDownHandler(e);
     } else if(setMode === drawMode && layerSelected == outlineLayer){
-        penmode.mouseDownHandler(e);
+        outlinemode.mouseDownHandler(e);
+    } else if(setMode == drawMode && layerSelected == orientLayer){
+        orientlinemode.mouseDownHandler(e);
     }
 });
 
@@ -501,7 +617,9 @@ element.addEventListener("mousemove", function (e) {
     } else if (pressed && setMode == selectMode){
         select.mouseMoveHandler(e);
     } else if(pressed && setMode === drawMode && layerSelected == outlineLayer){
-        penmode.mouseDownHandler(e);
+        outlinemode.mouseDownHandler(e);
+    } else if(pressed && setMode == drawMode && layerSelected == orientLayer){
+        orientlinemode.mouseMoveHandler(e);
     }
 });
 
@@ -512,7 +630,9 @@ element.addEventListener("mouseup", function () {
         select.clickedInSelection = false;
         select.resetSelectionBox();
     } if(setMode == drawMode && layerSelected == outlineLayer){
-        penmode.mouseUpHandler();
+        outlinemode.mouseUpHandler();
+    } else if( setMode == drawMode && layerSelected == orientLayer){
+        orientlinemode.mouseUpHandler();
     }
     
 });
