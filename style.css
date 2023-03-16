@@ -3,13 +3,23 @@ html, body
     padding: 0px;
     margin: 0px;
 }
-#svgElement
+.svg
 {
     border: 1px solid;
     margin-top: 4px;
     margin-left: 4px;
     cursor: default;
 }
-.path-selection {
+.path-selection 
+{
     outline: 1px solid blue;
+}
+.thumbnail 
+{
+    outline: 1px solid black;
+}
+.thumbnail:hover 
+{
+    outline: 1px solid blue;
+    
 }

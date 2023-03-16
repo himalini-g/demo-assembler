@@ -1,5 +1,5 @@
 
-var resetHTMl = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"svgElement\" x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 600 400\" xml:space=\"preserve\"></svg>"
+var svgHTML = "<svg class=\"svg\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"svgElement\" x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 600 400\" xml:space=\"preserve\"></svg>"
 
 
 var drawMode = "draw"
@@ -13,7 +13,8 @@ var outlineLayer = "outline"
 var orientLayer = "orient"
 var constructionLayer = "construction"
 var layerSelected = constructionLayer;
-var element = null;
+var svgElement = null;
+var thumbnailElement = null;
 var mode = null;
 var layer = null;
 var svg = null;
@@ -68,7 +69,7 @@ class Svg {
 
     }
     relativeMousePosition(point){
-        var parentRect = element.getBoundingClientRect();
+        var parentRect = this.element.getBoundingClientRect();
         return {
             x: point.pageX - parentRect.left,
             y: point.pageY - parentRect.top
@@ -82,7 +83,7 @@ class Svg {
     addLine(point, pointIsRelative=false){
         var key = this.activeLayer();
         var color = this.layerColors[key];
-        var line = new Line(this.validID(), true, color);
+        var line = new Line(this.validID(), false, color);
 
         var relativePoint;
         if(pointIsRelative){
@@ -112,7 +113,14 @@ class Svg {
             });
         }
     }
-    
+    getLayerAssembler(layer){
+        console.log(layer);
+        console.log(this.layers[layer]);
+        return Object.entries(this.layers[layer]).map(([_, line]) => {
+            console.log(line.getPointsArray());
+            return line.getPointsArray();
+        })
+    }
     updateSvgPath(point, lineID, pointIsRelative=false) {
         var key = this.activeLayer();
         var relativePoint;
@@ -489,20 +497,22 @@ class Select{
 
 function setup(){
    
-    $("#svg-container").html(resetHTMl);
-    element = document.getElementById("svgElement");
+    $("#svg-container").html(svgHTML);
+    svgElement = document.getElementById("svgElement");
     mode = document.getElementById("mode");
     layer = document.getElementById("layer");
     if(svg){
         thumbnails.push(svg);
+        console.log(thumbnails);
+        assemblerSetup(thumbnails);
     }
-    svg = new Svg(element,layerSelected, layerInfo);
+    svg = new Svg(svgElement,layerSelected, layerInfo);
     console.log(thumbnails);
     select = new Select(svg);
     outlinemode = new OutlineMode(svg);
     orientlinemode = new OrientLineMode(svg);
     constructionmode = new ConstructionMode(svg);
-    element.addEventListener("mousedown", function (e) {
+    svgElement.addEventListener("mousedown", function (e) {
         pressed = true;
         if(setMode == drawMode && layerSelected == constructionLayer){
             constructionmode.mouseDownHandler(e);
@@ -515,7 +525,7 @@ function setup(){
         }
     });
     
-    element.addEventListener("mousemove", function (e) {
+    svgElement.addEventListener("mousemove", function (e) {
         if(pressed){
             dragged = true;
         }
@@ -530,7 +540,7 @@ function setup(){
         }
     });
     
-    element.addEventListener("mouseup", function () {
+    svgElement.addEventListener("mouseup", function () {
         pressed = false;
         dragged = false;
         if(setMode == selectMode){
@@ -543,7 +553,7 @@ function setup(){
         }
         
     });
-    element.addEventListener("dblclick", function () {
+    svgElement.addEventListener("dblclick", function () {
         console.log("Double-click detected")
         // Double-click detected
     });
@@ -569,7 +579,18 @@ function changeLayer(){
     layerSelected = layer.value;
     svg.setLayer(layerSelected);
 }
+function click(){
+    console.log("o_0");
+}
+class Thumbnails{
+    constructor(){
+        this.svg = svg;
+        this.thumbnails = [];
+    }
+    addThumbnail(){
 
+    }
+}
 function renderThumbnails(){
 
     $("#thumbnail-container").html("<div id=\"thumbnails\"></div>");
@@ -577,7 +598,7 @@ function renderThumbnails(){
     thumbnails.forEach(function (thumbnail, i)
     {
         var id = i.toString() + "_thumbnail";
-        var thumbnailHTML = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"" + id + "\"x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 200 200\" xml:space=\"preserve\"></svg>"
+        var thumbnailHTML = "<svg onclick=\"click()\" class=\"thumbnail\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"" + id + "\"x=\"0px\" y=\"0px\" width=\"150px\" height=\"100px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 200 200\" xml:space=\"preserve\"></svg>"
         $("#thumbnail-container").append(thumbnailHTML)
         var thumbnail_element = document.getElementById(id);
         thumbnail.setElement(thumbnail_element);
@@ -587,3 +608,11 @@ function renderThumbnails(){
 }
 
 setup();
+
+if (typeof(module) !== "undefined") {
+	module.exports.Svg = Svg;
+    module.exports.layerInfo = layerInfo;
+    module.exports.outlineLayer = outlineLayer;
+    module.exports.orientLayer = orientLayer;
+    module.exports.constructionLayer = constructionLayer;
+}

@@ -85,6 +85,9 @@ class Line {
     getPoints(){
         return this.points;
     }
+    getPointsArray(){
+        return this.points.map(point => [point.x, point.y]);
+    }
     toString(){
         var svgString = this.points.reduce(function(str, point){
             str += " L" + point.x + " " + point.y;
