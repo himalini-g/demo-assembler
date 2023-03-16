@@ -28,8 +28,9 @@ const attachments = {
 // }
 
 function draw(renderStack){
-  var polyLines = [];
-  for(var l = 0; l< renderStack.length; l++){
+    console.log(renderStack);
+    var polyLines = [];
+    for(var l = 0; l< renderStack.length; l++){
     var drawing = renderStack[l];
     polyLines.push(...drawing.getLines());
     // if(drawing.canShow){
@@ -38,8 +39,8 @@ function draw(renderStack){
     //     drawing.showSkeleton();
     //   }      
     // }
-  }
-  return polyLines;
+    }
+    return polyLines;
 }
 
 class Assemblage{
@@ -131,16 +132,17 @@ function makeStack(drawingJSONs) {
 
 class Drawing {
   constructor (object){
-    this.lines = object.getLayerAssembler("construction");
-    this.polygonBorder = object.getLayerAssembler("outline");
-    this.orient = object.getLayerAssembler("orient");
+    this.lines = JSON.parse(JSON.stringify(object.getLayerAssembler("construction")));
+    this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("outline")));
+    this.polygonBorder = this.polygonBorder.flat(1);
+    this.orient = JSON.parse(JSON.stringify(object.getLayerAssembler("orient")));
 
     this.orientLines = [];
 
-    for(var i = 0; i< object.orientationLines.length && i < object.perpLines.length ; i++){
+    for(var i = 0; i< this.orient.length; i++){
         var orientLine = {
-          opening: JSON.parse(JSON.stringify(object.orientationLines[i])),
-          vector: JSON.parse(JSON.stringify(object.perpLines[i])),
+          opening: this.orient[i].slice(0, 2),
+          vector: this.orient[i].slice(2),
           attachedDrawing: false,
           //TODO: fix,
           label: attachments[i % attachments.length],
@@ -148,9 +150,10 @@ class Drawing {
         }
         this.orientLines.push(orientLine)
     }
+
   }
   getOrientIndexOptions(targetLabel){
-    // console.log(targetLabel);
+
     return this.orientLines
     .filter(line => line.label == targetLabel)
     .map(line => line.index);
@@ -159,11 +162,12 @@ class Drawing {
     return this.lines;
   }
   getPolygonBorder(){
+    
     return this.polygonBorder;
   }
   
   linePreprocessing(lines){
-    console.log(lines);
+    
     return lines.entries.map(lineObj => lineObj.getPointsArray());
   }
 
@@ -268,12 +272,13 @@ function firstOrderSmoothing(arr){
 
 function get_bbox(points){
   // https://github.com/LingDong-/fishdraw
-  let xmin = Infinity;
-  let ymin = Infinity;
-  let xmax = -Infinity;
-  let ymax = -Infinity
+  let xmin = 9999999999999999;
+  let ymin = 9999999999999999;
+  let xmax = -9999999999999999;
+  let ymax = -9999999999999999;
   for (let i = 0;i < points.length; i++){
-    let [x,y] = points[i];
+    let x = points[i][0];
+    let y = points[i][1];
     xmin = Math.min(xmin,x);
     ymin = Math.min(ymin,y);
     xmax = Math.max(xmax,x);
@@ -454,8 +459,8 @@ function randomInteger(bottom=0, top){
   return parseInt((Math.random() * (top- bottom)) + bottom, 10);
 }
 
-function draw_svg(polylines, width, height){
-  let o = `<svg xmlns="http://www.w3.org/2000/svg" width="` + width.toString() + `" height="`+ height.toString()+`">`
+function draw_svg(polylines, width, height, id){
+  let o = `<svg xmlns="http://www.w3.org/2000/svg" id="` + id + `" width="` + width.toString() + `" height="`+ height.toString()+`">`
   o += `<rect x="0" y="0" width="` + width.toString() + `" height="`+ height.toString()+`" fill="floralwhite"/> <path stroke="black" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" d="`
   for (let i = 0; i < polylines.length; i++){
     o += '\nM ';
@@ -484,16 +489,18 @@ function saveSVG(svgData){
 // drawingJSONs.then(response => {
   
 // });
-
+var id = "assembler-svg"
+var element = document.getElementById("assembler-svg");
 function assemblerSetup(drawings){
-    console.log(drawings);
+
+    
     var renderStack = makeStack(drawings);
+    console.log(renderStack);
     var polyLines = draw(renderStack);
-    var svg = draw_svg(polyLines, width, height);
-    // saveSVG(svg);
-    var element = document.getElementById("assembler-svg");
+    var svg = draw_svg(polyLines, width, height, id);
     element.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     element.outerHTML = svg;
+    element = document.getElementById("assembler-svg");
 }
 
 if (typeof(module) !== "undefined") {

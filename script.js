@@ -44,7 +44,7 @@ class Svg {
         this.name = "svg"
         this.uniqueID = 1;
         this.element = element;
-        console.log(this.element);
+     
         this.layerSelected = activeLayer;
         this.layers = {};
         this.layerColors = {};
@@ -114,10 +114,10 @@ class Svg {
         }
     }
     getLayerAssembler(layer){
-        console.log(layer);
-        console.log(this.layers[layer]);
+        
+       
         return Object.entries(this.layers[layer]).map(([_, line]) => {
-            console.log(line.getPointsArray());
+          
             return line.getPointsArray();
         })
     }
@@ -312,10 +312,15 @@ class OrientLineMode{
         }
         else{
             var [average, normal] = this.generatePerp(this.baseID, e);
-            var perpID = this.svg.addLine(average, true);
-            var perpPenMode= new PenMode(this.svg, perpID);
-            perpPenMode.mouseDownHandler(normal, true);
-            perpPenMode.mouseUpHandler();
+            this.curPenMode.mouseDownHandler(average, true);
+            this.curPenMode.mouseUpHandler();
+            this.curPenMode.mouseDownHandler(normal, true);
+            this.curPenMode.mouseUpHandler();
+
+            // var perpID = this.svg.addLine(average, true);
+            // var perpPenMode= new PenMode(this.svg, perpID);
+            // perpPenMode.mouseDownHandler(normal, true);
+            // perpPenMode.mouseUpHandler();
             
             this.baseID = null;
             this.baseLength = null;
@@ -503,11 +508,11 @@ function setup(){
     layer = document.getElementById("layer");
     if(svg){
         thumbnails.push(svg);
-        console.log(thumbnails);
+     
         assemblerSetup(thumbnails);
     }
     svg = new Svg(svgElement,layerSelected, layerInfo);
-    console.log(thumbnails);
+    
     select = new Select(svg);
     outlinemode = new OutlineMode(svg);
     orientlinemode = new OrientLineMode(svg);
@@ -559,7 +564,10 @@ function setup(){
     });
     renderThumbnails();
 }
+function rerenderAssemblage(){
+    assemblerSetup(thumbnails);
 
+}
 function downloadSVG(){
     svg.downloadSVG();
 }
