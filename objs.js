@@ -1,4 +1,37 @@
 
+class Point {
+    constructor(point, ID, radius=3, fill="#0000ff", stroke="#0000c8"){
+        this.fill = fill;
+        this.stroke = stroke;
+        this.point = point;
+        this.radius = radius
+        this.circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        this.circle.setAttribute("fill", this.fill);
+        this.circle.setAttribute("stroke", this.stroke);
+        this.circle.setAttribute("cy", this.point.y);
+        this.circle.setAttribute("cx", this.point.x);
+        this.circle.setAttribute("r", this.radius);
+        this.circle.setAttribute("stroke-width", this.radius / 2);
+        this.circle.setAttribute("class", "circle");
+        this.circle.id = "point_" + ID.toString();
+
+    }
+
+    getID(){
+        return this.circle.id;
+    }
+    moveByVector(vec){
+        this.point = {
+                x: this.point.x + vec.x, 
+                y: this.point.y + vec.y,
+        }
+    }
+    reRender(){
+        this.circle.setAttribute("cy", this.point.y);
+        this.circle.setAttribute("cx", this.point.x);
+    }
+}
+
 class Line {
     constructor(ID, lineClosed=false, stroke="#000") {
         this.fill = "none";
@@ -13,20 +46,28 @@ class Line {
         this.lineClosed = lineClosed;
         this.closePoint = null;
     }
+    movePoint(index, vec){
+        var point = this.points[index];
+        point =  {
+            x: point.x + vec.x, 
+            y: point.y + vec.y,
+        }
+        this.points[index] = point;
 
-    removePoint(index){
-        if(this.points.length > 0 && index >= 0 && index < this.points.length){
+    }
+    removePoint(index=null){
+        if(index == null){
+            this.points.pop();
+        } else if(this.points.length > 0 && index >= 0 && index < this.points.length){
             this.points.pop(index);
-        } else if(this.points.length == 0){
+        } 
+        if(this.points.length == 0){
             this.closePoint = null;
         }
         return;
     }
-    popPoint(){
-        this.points.pop();
-        if(this.points.length == 0){
-            this.closePoint = null;
-        }
+    insertPoint(index, point){
+        this.points.splice(index, 0, point);
     }
     appendPoint(point){
         this.points.push(point);
@@ -104,4 +145,5 @@ class Line {
 
 if (typeof(module) !== "undefined") {
 	module.exports.Line = Line;
+    module.exports.Point = Point;
 }

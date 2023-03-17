@@ -40,7 +40,7 @@ function firstOrderSmoothing(arr){
     return arr
   }
   
-function get_bbox(points){
+function get_bbox_assembler(points){
     // https://github.com/LingDong-/fishdraw
     let xmin = 9999999999999999;
     let ymin = 9999999999999999;
@@ -201,7 +201,7 @@ if (typeof(module) !== "undefined") {
     module.exports.pointInPolygon = pointInPolygon;
     module.exports.randomInteger = randomInteger;
     module.exports.firstOrderSmoothing = firstOrderSmoothing;
-    module.exports.get_bbox = get_bbox;
+    module.exports.get_bbox_assembler = get_bbox_assembler;
     module.exports.resample = resample;
     module.exports.isect_circ_line = isect_circ_line;
     module.exports.polygonIntersectPolygonList =polygonIntersectPolygonList;

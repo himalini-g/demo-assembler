@@ -10,6 +10,11 @@ html, body
     margin-left: 4px;
     cursor: default;
 }
+.circle:hover 
+{
+    cursor: move;
+    stroke: lightblue;
+}
 .path-selection 
 {
     outline: 1px solid blue;

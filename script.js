@@ -2,23 +2,22 @@
 var svgHTML = "<svg class=\"svg\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"svgElement\" x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 600 400\" xml:space=\"preserve\"></svg>"
 
 
-var drawMode = "draw"
-var deleteMode = "delete"
-var selectMode = "select"
-var orientMode = "orient"
+var drawMode = "draw";
+var selectMode = "select";
+var selectPointsMode = "select points";
 var setMode = drawMode;
 var pressed = false;
 var dragged = false;
-var outlineLayer = "outline"
-var orientLayer = "orient"
-var constructionLayer = "construction"
+var outlineLayer = "outline";
+var orientLayer = "orient";
+var constructionLayer = "construction";
 var layerSelected = constructionLayer;
 var svgElement = null;
-var thumbnailElement = null;
 var mode = null;
 var layer = null;
 var svg = null;
 var select = null;
+var selectpointsmode = null;
 var outlinemode = null;
 var orientlinemode = null;
 var constructionmode = null;
@@ -44,7 +43,7 @@ class Svg {
         this.name = "svg"
         this.uniqueID = 1;
         this.element = element;
-     
+        this.tempElems = [];
         this.layerSelected = activeLayer;
         this.layers = {};
         this.layerColors = {};
@@ -63,9 +62,9 @@ class Svg {
         return this.layerSelected;
         
     }
-    popLinePoint(lineID){
+    removeLinePoint(lineID, index=null){
         var key = this.activeLayer();
-        this.layers[key][lineID].popPoint();
+        this.layers[key][lineID].removePoint(index);
 
     }
     relativeMousePosition(point){
@@ -79,6 +78,9 @@ class Svg {
         var ID = this.uniqueID;
         this.uniqueID += 1;
         return ID;
+    }
+    addTempElem(elem){
+        this.tempElems.push(elem);
     }
     addLine(point, pointIsRelative=false){
         var key = this.activeLayer();
@@ -112,12 +114,19 @@ class Svg {
                 line.reRender();
             });
         }
+        this.tempElems.forEach(elem =>{
+            this.element.appendChild(elem);
+        });
     }
+    // getLinePoints(lineIDs){
+    //     var key = this.activeLayer();
+    //     return Object.entries(this.layers[key]).map(([_, line]) => {
+    //         return line.getPoints();
+    //     })
+
+    // }
     getLayerAssembler(layer){
-        
-       
         return Object.entries(this.layers[layer]).map(([_, line]) => {
-          
             return line.getPointsArray();
         })
     }
@@ -133,6 +142,22 @@ class Svg {
         return lineID;
        
     }
+    clearTemp(){
+        this.tempElems = [];
+    }
+    lineRerender(lineID){
+        var key = this.activeLayer();
+        var line = this.layers[key][lineID];
+        line.reRender();
+
+    }
+    movePointInLine(lineID, index, vec){
+ 
+        var key = this.activeLayer();
+        var line = this.layers[key][lineID];
+        line.movePoint(index, vec);
+
+    }
 
     moveLines(lineIDs, vec){
         var key = this.activeLayer();
@@ -144,7 +169,6 @@ class Svg {
 
     }
     getLinePoints(lineID) {
-
         var key = this.activeLayer();
         return this.layers[key][lineID].getPoints();
     }
@@ -230,7 +254,7 @@ class PenMode{
             this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
             this.addedToLine = true;
         } else{
-            this.svg.popLinePoint(this.lineID );
+            this.svg.removeLinePoint(this.lineID);
             this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
         }
     }
@@ -252,6 +276,89 @@ class ConstructionMode{
     }
     mouseUpHandler(){
 
+    }
+}
+class SelectPoints{
+    constructor(svg){
+        this.svg = svg;
+        this.tolerance = 5;
+        this.lineID = null;
+        this.pointDict = {};
+        this.circleTarget = null;
+        this.moveVec = {
+            x:0,
+            y:0
+        };
+        this.oldCursorPosition = {
+            x:0,
+            y:0
+        };
+    }
+    mouseDownHandler(e){
+        this.svg.clearTemp();
+        this.svg.reRender();
+        if(this.lineID == null){
+            var point = svg.relativeMousePosition(e);
+            this.lineID = this.svg.getAllIDs()[0];
+            this.renderPoints();
+            this.moveVec = {
+                x:0,
+                y:0
+            };
+            this.oldCursorPosition = point;
+        }
+    }
+    mouseMoveHandler(e){
+        var circleTarget = e.target;
+        var id = circleTarget.id;
+        if(id in this.pointDict && this.circleTarget == null){
+            this.circleTarget = id;
+        }
+        if(this.circleTarget !== null){
+            var point = svg.relativeMousePosition(e);
+            this.moveVec = {
+                x: point.x -  this.oldCursorPosition.x,
+                y: point.y -  this.oldCursorPosition.y,
+            }
+            this.oldCursorPosition = point;
+            var point = this.pointDict[this.circleTarget].point;
+            var index = this.pointDict[this.circleTarget].index;
+            point.moveByVector(this.moveVec);
+            this.svg.movePointInLine(this.lineID, index, this.moveVec);
+            this.svg.lineRerender(this.lineID);
+            point.reRender();
+
+        }
+
+    }
+    renderPoints(){
+       
+        var points = this.svg.getLinePoints(this.lineID);
+        points.forEach((point, index) => {
+            var pointElem = new Point(point, index, this.tolerance);
+            this.pointDict[pointElem.getID()] = {
+                point: pointElem,
+                index: index
+            };
+            this.svg.addTempElem(pointElem.circle);
+        });
+        this.svg.reRender();
+    }
+    mouseUpHandler(e){
+        console.log("hello")
+        this.lineID = null;
+        this.pointDict = {};
+        this.circleTarget = null;
+        this.moveVec = {
+            x:0,
+            y:0
+        };
+        this.oldCursorPosition = {
+            x:0,
+            y:0
+        };
+        
+        
     }
 }
 class OrientLineMode{
@@ -316,12 +423,6 @@ class OrientLineMode{
             this.curPenMode.mouseUpHandler();
             this.curPenMode.mouseDownHandler(normal, true);
             this.curPenMode.mouseUpHandler();
-
-            // var perpID = this.svg.addLine(average, true);
-            // var perpPenMode= new PenMode(this.svg, perpID);
-            // perpPenMode.mouseDownHandler(normal, true);
-            // perpPenMode.mouseUpHandler();
-            
             this.baseID = null;
             this.baseLength = null;
             this.curPenMode = null;
@@ -351,7 +452,8 @@ class Select{
         this.selectionBox.setAttribute('stroke','gray')
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
-        this.svg.element.appendChild(this.selectionBox);
+        this.svg.addTempElem(this.selectionBox);
+        // this.svg.element.appendChild(this.selectionBox);
         this.selected = [];
         this.moveVec = {
             x:0,
@@ -379,6 +481,7 @@ class Select{
         return this.selected.length > 0;
     }
     doubleClickHandler(e){
+        console.log(e.target);
         this.resetSelection();
         var line = this.svg;
 
@@ -409,6 +512,7 @@ class Select{
         if(!this.isSelected()){
             return false;
         }
+        console.log(e.target);
         var point = svg.relativeMousePosition(e);
         var potentialIDs = svg.getLinesInPoint(point);
         const found = potentialIDs.some(r=> this.selected.includes(r))
@@ -439,7 +543,7 @@ class Select{
             this.updateSelection(e);
             this.svg.moveLines(this.selected, this.moveVec);
             this.svg.reRender();
-            this.svg.element.appendChild(this.selectionBox);
+            this.svg.addTempElem(this.selectionBox);
         } else {
             this.updateSelection(e);
             this.setSelectionBox();
@@ -514,13 +618,17 @@ function setup(){
     svg = new Svg(svgElement,layerSelected, layerInfo);
     
     select = new Select(svg);
+    selectpointsmode = new SelectPoints(svg);
     outlinemode = new OutlineMode(svg);
     orientlinemode = new OrientLineMode(svg);
     constructionmode = new ConstructionMode(svg);
+    
     svgElement.addEventListener("mousedown", function (e) {
         pressed = true;
         if(setMode == drawMode && layerSelected == constructionLayer){
             constructionmode.mouseDownHandler(e);
+        } else if(setMode == selectPointsMode){
+            selectpointsmode.mouseDownHandler(e);
         } else if(setMode === selectMode){
             select.mouseDownHandler(e);
         } else if(setMode === drawMode && layerSelected == outlineLayer){
@@ -536,6 +644,8 @@ function setup(){
         }
         if(pressed && setMode == drawMode && layerSelected == constructionLayer){
             constructionmode.mouseMoveHandler(e);
+        } else if(pressed && setMode == selectPointsMode){
+            selectpointsmode.mouseMoveHandler(e);
         } else if (pressed && setMode == selectMode){
             select.mouseMoveHandler(e);
         } else if(pressed && setMode === drawMode && layerSelected == outlineLayer){
@@ -551,15 +661,21 @@ function setup(){
         if(setMode == selectMode){
             select.clickedInSelection = false;
             select.resetSelectionBox();
-        } if(setMode == drawMode && layerSelected == outlineLayer){
+        } else if(setMode == selectPointsMode){
+            selectpointsmode.mouseUpHandler()
+        } else if(setMode == drawMode && layerSelected == outlineLayer){
             outlinemode.mouseUpHandler();
         } else if( setMode == drawMode && layerSelected == orientLayer){
             orientlinemode.mouseUpHandler();
-        }
+        } 
         
     });
     svgElement.addEventListener("dblclick", function () {
-        console.log("Double-click detected")
+        if(setMode == selectMode){
+            select.clickedInSelection = false;
+            select.resetSelectionBox();
+            select.doubleClickHandler();
+        }
         // Double-click detected
     });
     renderThumbnails();
