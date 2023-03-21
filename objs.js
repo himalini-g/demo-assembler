@@ -4,7 +4,8 @@ class Point {
         this.fill = fill;
         this.stroke = stroke;
         this.point = point;
-        this.radius = radius
+        this.radius = radius;
+        this.id = "point_" + ID.toString();
         this.circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         this.circle.setAttribute("fill", this.fill);
         this.circle.setAttribute("stroke", this.stroke);
@@ -13,12 +14,7 @@ class Point {
         this.circle.setAttribute("r", this.radius);
         this.circle.setAttribute("stroke-width", this.radius / 2);
         this.circle.setAttribute("class", "circle");
-        this.circle.id = "point_" + ID.toString();
-
-    }
-
-    getID(){
-        return this.circle.id;
+        this.circle.setAttribute("id", this.id);
     }
     moveByVector(vec){
         this.point = {
@@ -38,11 +34,12 @@ class Line {
         this.strokeWidth = 2;
         this.stroke = stroke;
         this.points = [];
+        this.id = "stroke_" + ID.toString();
         this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         this.path.setAttribute("fill", this.fill);
         this.path.setAttribute("stroke", this.stroke);
         this.path.setAttribute("stroke-width",this.strokeWidth);
-        this.path.id = "stroke_" + ID.toString();
+        this.path.setAttribute("id", this.id);
         this.lineClosed = lineClosed;
         this.closePoint = null;
     }
@@ -76,10 +73,6 @@ class Line {
         }
 
         this.path.setAttribute("d", this.toString());
-    }
-    
-    getID(){
-        return this.path.id;
     }
     pointInRect(point){
         var lineRect = get_bbox(this.points);
@@ -120,16 +113,6 @@ class Line {
             this.closePoint = this.points[0];
         }
 
-    }
-    distanceToLine(point){
-
-        return minDistanceToLine(point, this.points);
-    }
-    getLength(){
-        return this.points.length;
-    }
-    getPoints(){
-        return this.points;
     }
     getPointsArray(){
         return this.points.map(point => [point.x, point.y]);

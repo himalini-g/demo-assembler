@@ -96,9 +96,9 @@ class Svg {
         
         line.appendPoint(relativePoint);
         this.element.appendChild(line.path);
-        this.layers[key][line.getID()] = line;
+        this.layers[key][line.id] = line;
   
-        return line.getID();
+        return line.id;
     }
     getAllIDs(){
         var key = this.activeLayer();
@@ -158,18 +158,18 @@ class Svg {
     }
     getLineLength(lineID){
         var key = this.activeLayer();
-        return this.layers[key][lineID].getLength();
+        return this.layers[key][lineID].length;
 
     }
     getLinePoints(lineID) {
         var key = this.activeLayer();
-        return this.layers[key][lineID].getPoints();
+        return this.layers[key][lineID].points;
     }
     getLinesInPoint(point){
         var key = this.activeLayer();
         var selectedIDs = Object.entries(this.layers[key]).reduce((acc, [_,curLine]) => {
             if(curLine.pointInRect(point)){
-                acc.push(curLine.getID())
+                acc.push(curLine.id)
             }
             return acc;
         }, []);
@@ -180,7 +180,7 @@ class Svg {
 
         var selectedIDs = Object.entries(this.layers[key]).reduce((acc, [_,curLine])=> {
             if(curLine.inRect(rect)){
-                acc.push(curLine.getID())
+                acc.push(curLine.id)
             }
             return acc;
         }, []);
@@ -190,10 +190,10 @@ class Svg {
         var key = this.activeLayer();
         var relativePoint = this.relativeMousePosition(point);
         var closestLine = Object.entries(this.layers[key]).reduce((acc, [_,curLine])=> {
-            var distance = curLine.distanceToLine(relativePoint);
+            var distance = minDistanceToLine(relativePoint, curLine.points);
             if( distance < acc.distance ){
                 acc.distance = distance;
-                acc.lineID = curLine.getID();
+                acc.lineID = curLine.id;
             }
             return acc;
         }, {distance: Infinity, lineID: null});
@@ -411,7 +411,7 @@ class SelectPoints{
         }
         points.forEach((point, index) => {
             var pointElem = new Point(point, index, this.tolerance);
-            this.pointDict[pointElem.getID()] = {
+            this.pointDict[pointElem.id] = {
                 point: pointElem,
                 index: index
             };
