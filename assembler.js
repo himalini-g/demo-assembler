@@ -135,7 +135,12 @@ class Drawing {
     .map(line => line.index);
   }
   getLines(){
-    return this.lines;
+    var orientLines = this.orientLines.map(orient => orient.opening);
+    var vectorLines = this.orientLines.map(orient => orient.vector);
+    var retLines = this.lines;
+    retLines.push(...orientLines);
+    retLines.push(...vectorLines);
+    return retLines;
   }
   getPolygonBorder(){
     

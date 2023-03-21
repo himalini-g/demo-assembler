@@ -77,6 +77,7 @@ class Line {
 
         this.path.setAttribute("d", this.toString());
     }
+    
     getID(){
         return this.path.id;
     }
@@ -119,6 +120,10 @@ class Line {
             this.closePoint = this.points[0];
         }
 
+    }
+    distanceToLine(point){
+
+        return minDistanceToLine(point, this.points);
     }
     getLength(){
         return this.points.length;

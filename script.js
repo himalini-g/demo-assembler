@@ -65,7 +65,6 @@ class Svg {
     removeLinePoint(lineID, index=null){
         var key = this.activeLayer();
         this.layers[key][lineID].removePoint(index);
-
     }
     relativeMousePosition(point){
         var parentRect = this.element.getBoundingClientRect();
@@ -79,13 +78,14 @@ class Svg {
         this.uniqueID += 1;
         return ID;
     }
+    
     addTempElem(elem){
         this.tempElems.push(elem);
     }
-    addLine(point, pointIsRelative=false){
+    addLine(point, pointIsRelative=false, closed=false){
         var key = this.activeLayer();
         var color = this.layerColors[key];
-        var line = new Line(this.validID(), false, color);
+        var line = new Line(this.validID(), closed, color);
 
         var relativePoint;
         if(pointIsRelative){
@@ -94,7 +94,6 @@ class Svg {
             relativePoint = this.relativeMousePosition(point);
         }
         
-
         line.appendPoint(relativePoint);
         this.element.appendChild(line.path);
         this.layers[key][line.getID()] = line;
@@ -118,13 +117,7 @@ class Svg {
             this.element.appendChild(elem);
         });
     }
-    // getLinePoints(lineIDs){
-    //     var key = this.activeLayer();
-    //     return Object.entries(this.layers[key]).map(([_, line]) => {
-    //         return line.getPoints();
-    //     })
-
-    // }
+ 
     getLayerAssembler(layer){
         return Object.entries(this.layers[layer]).map(([_, line]) => {
             return line.getPointsArray();
@@ -193,22 +186,67 @@ class Svg {
         }, []);
         return selectedIDs;
     }
-
-    // deleteMousePressed(point){
-    //     var relativePoint = this.relativeMousePosition(point);
-    //     this.lines = this.activeLayer().reduce((acc, curLine) => 
-    //     {
-    //         var minDistance = minDistanceToLine(relativePoint, curLine.points);
-           
-    //         if(minDistance > this.tolerance){
-              
-    //             acc.push(curLine);
-    //         }
-    //         return acc;
-    //     }, []);
-    //     this.reRender();
-    // }
-    
+    getClosestLine(point){
+        var key = this.activeLayer();
+        var relativePoint = this.relativeMousePosition(point);
+        var closestLine = Object.entries(this.layers[key]).reduce((acc, [_,curLine])=> {
+            var distance = curLine.distanceToLine(relativePoint);
+            if( distance < acc.distance ){
+                acc.distance = distance;
+                acc.lineID = curLine.getID();
+            }
+            return acc;
+        }, {distance: Infinity, lineID: null});
+        return closestLine;
+    }
+    generatePerp(lineID, point){
+        var relativePoint = this.relativeMousePosition(point);
+        const pickDir = {
+            average: null,
+            vector: null,
+            normals: null,
+            normalIndex: null,
+            computeNormals(points){
+                var pointSum = {
+                    x: points[0].x + points[1].x, 
+                    y: points[0].y + points[1].y
+                }
+                this.average = {
+                    x: pointSum.x / 2.0,
+                    y: pointSum.y / 2.0
+                };
+                this.vector = {
+                    x: points[1].x - points[0].x,
+                    y: points[1].y - points[0].y,
+                };
+                var normal1 = {
+                    x: (this.vector.y * -1) + this.average.x,
+                    y: this.vector.x  + this.average.y,
+                }
+                var normal2 = {
+                    x: this.vector.y + this.average.x,
+                    y: (this.vector.x * -1)  + this.average.y,
+                }
+                this.normals = [normal1, normal2];
+                return [this.average, this.normals]
+            },
+            setNormalToRetrieve(index){
+                this.normalIndex = index;
+            },
+            retrieveAverageNormal(){
+                return [this.average, this.normals[this.normalIndex]];
+            },
+        }
+        var [_, normals] = pickDir.computeNormals(this.getLinePoints(lineID));
+        var distNormal2 = dist2(relativePoint, normals[1]);
+        var distNormal1 = dist2(relativePoint, normals[0]);
+        if(distNormal1 < distNormal2){
+            pickDir.setNormalToRetrieve(0);
+            return pickDir;
+        }
+        pickDir.setNormalToRetrieve(1);
+        return pickDir;
+    }
 
     downloadSVG(){
         var preface = '<?xml version="1.0" standalone="no"?>\r\n';
@@ -230,7 +268,7 @@ class OutlineMode{
     }
     mouseDownHandler(e){
         if(this.outlineID == null){
-            this.outlineID = this.svg.addLine(e)
+            this.outlineID = this.svg.addLine(e, false, true);
             this.penmode = new PenMode(this.svg, this.outlineID);
     
         }
@@ -279,9 +317,10 @@ class ConstructionMode{
     }
 }
 class SelectPoints{
-    constructor(svg){
+    constructor(svg, orientlinemode){
+        this.orientlinemode = orientlinemode;
         this.svg = svg;
-        this.tolerance = 5;
+        this.tolerance = 2;
         this.lineID = null;
         this.pointDict = {};
         this.circleTarget = null;
@@ -294,46 +333,82 @@ class SelectPoints{
             y:0
         };
     }
-    mouseDownHandler(e){
+    reset(){
+        this.lineID = null;
+        this.pointDict = {};
+        this.circleTarget = null;
+        this.moveVec = {
+            x:0,
+            y:0
+        };
+        this.oldCursorPosition = {
+            x:0,
+            y:0
+        };
         this.svg.clearTemp();
         this.svg.reRender();
-        if(this.lineID == null){
-            var point = svg.relativeMousePosition(e);
-            this.lineID = this.svg.getAllIDs()[0];
-            this.renderPoints();
-            this.moveVec = {
-                x:0,
-                y:0
-            };
-            this.oldCursorPosition = point;
-        }
+
     }
-    mouseMoveHandler(e){
+    initSelection(e, passedLineID){
+        this.svg.clearTemp();
+        this.svg.reRender();
+        this.lineID = passedLineID;
+        this.renderPoints();
+        this.moveVec = {
+            x:0,
+            y:0
+        };
+        var point = svg.relativeMousePosition(e);
+        this.oldCursorPosition = point;
+
+    }
+    mouseDownHandler(e){
         var circleTarget = e.target;
         var id = circleTarget.id;
-        if(id in this.pointDict && this.circleTarget == null){
-            this.circleTarget = id;
+        this.circleTarget = id;
+        this.moveVec = {
+            x:0,
+            y:0
+        };
+        var point = svg.relativeMousePosition(e);
+        this.oldCursorPosition = point;
+    }
+    clickInPoint(e){
+        var circleTarget = e.target;
+        var id = circleTarget.id;
+        if(id in this.pointDict){
+            return true;
         }
-        if(this.circleTarget !== null){
-            var point = svg.relativeMousePosition(e);
-            this.moveVec = {
-                x: point.x -  this.oldCursorPosition.x,
-                y: point.y -  this.oldCursorPosition.y,
-            }
-            this.oldCursorPosition = point;
-            var point = this.pointDict[this.circleTarget].point;
-            var index = this.pointDict[this.circleTarget].index;
-            point.moveByVector(this.moveVec);
-            this.svg.movePointInLine(this.lineID, index, this.moveVec);
-            this.svg.lineRerender(this.lineID);
-            point.reRender();
-
+        return false;
+    }
+    mouseMoveHandler(e){
+        var point = svg.relativeMousePosition(e);
+        this.moveVec = {
+            x: point.x -  this.oldCursorPosition.x,
+            y: point.y -  this.oldCursorPosition.y,
+        }
+        this.oldCursorPosition = point;
+        var point = this.pointDict[this.circleTarget].point;
+        var index = this.pointDict[this.circleTarget].index;
+        point.moveByVector(this.moveVec);
+        this.svg.movePointInLine(this.lineID, index, this.moveVec);
+        if(layerSelected == orientLayer){
+            this.orientlinemode.reComp(this.lineID);
         }
 
+        this.svg.lineRerender(this.lineID);
+        point.reRender();
+    }
+    mouseUpHandler(e){
+        this.circleTarget = null;
     }
     renderPoints(){
        
         var points = this.svg.getLinePoints(this.lineID);
+        if(layerSelected == orientLayer){
+            console.log('hello');
+            points = points.slice(0, 2);
+        }
         points.forEach((point, index) => {
             var pointElem = new Point(point, index, this.tolerance);
             this.pointDict[pointElem.getID()] = {
@@ -345,7 +420,7 @@ class SelectPoints{
         this.svg.reRender();
     }
     mouseUpHandler(e){
-        console.log("hello")
+  
         this.lineID = null;
         this.pointDict = {};
         this.circleTarget = null;
@@ -364,49 +439,22 @@ class SelectPoints{
 class OrientLineMode{
     constructor(svg){
         this.svg = svg;
-        
         this.color = "#00ff00";
-
         this.baseLength = null;
         this.baseID = null;
         this.curPenMode = null;
-    }
-    generatePerp(lineId, e){
-        const sumPoints = (p1, p2) =>
-        {
-            return  {
-                x: p1.x + p2.x, 
-                y: p1.y + p2.y
-            };
-        }
-        var points = this.svg.getLinePoints(lineId);
-        var pointSum = points.reduce(sumPoints, {x:0, y:0})
-        var average = {
-            x: pointSum.x / points.length,
-            y: pointSum.y / points.length
-        }
-        var vector = {
-            x: points[1].x - points[0].x,
-            y: points[1].y - points[0].y,
-        }
-        var normal1 = {
-            x: (vector.y * -1) + average.x,
-            y: vector.x  + average.y,
-        }
-        var normal2 = {
-            x: vector.y + average.x,
-            y: (vector.x * -1)  + average.y,
-        }
+        this.orientDict = {};
 
-        var relativePoint = this.svg.relativeMousePosition(e);
-        var distNormal2 = dist2(relativePoint, normal2);
-        var distNormal1 = dist2(relativePoint, normal1);
-        if(distNormal1 < distNormal2){
-            return [average, normal1];
-        }
-        return [average, normal2];
     }
-   
+    reComp(lineID){
+        const pickDir = this.orientDict[lineID];
+        pickDir.computeNormals(this.svg.getLinePoints(lineID));
+        var [average, normal] = pickDir.retrieveAverageNormal();
+        this.svg.removeLinePoint(lineID);
+        this.svg.removeLinePoint(lineID);
+        this.svg.updateSvgPath(average, lineID, true);
+        this.svg.updateSvgPath(normal, lineID, true);
+    }
     mouseDownHandler(e){
         if(this.baseID == null){
             this.baseID = this.svg.addLine(e);
@@ -418,7 +466,9 @@ class OrientLineMode{
             this.curPenMode.mouseDownHandler(e);
         }
         else{
-            var [average, normal] = this.generatePerp(this.baseID, e);
+            const pickDir = this.svg.generatePerp(this.baseID, e);
+            this.orientDict[this.baseID] = pickDir;
+            var [average, normal] = pickDir.retrieveAverageNormal();
             this.curPenMode.mouseDownHandler(average, true);
             this.curPenMode.mouseUpHandler();
             this.curPenMode.mouseDownHandler(normal, true);
@@ -429,6 +479,12 @@ class OrientLineMode{
 
         }
        
+    }
+    movePointHandler(e, lineID){
+      
+
+        
+
     }
     mouseMoveHandler(e){
         if(this.curPenMode != null){
@@ -444,8 +500,9 @@ class OrientLineMode{
     }
 }
 class Select{
-    constructor(svg){
-        this.svg = svg
+    constructor(svg, selectpoints){
+        this.svg = svg;
+        this.selectpoints = selectpoints;
         this.selectionCss = 'path-selection'
         this.selectionBox =  document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         this.selectionBox.setAttribute('fill', 'none')
@@ -455,6 +512,7 @@ class Select{
         this.svg.addTempElem(this.selectionBox);
         // this.svg.element.appendChild(this.selectionBox);
         this.selected = [];
+        
         this.moveVec = {
             x:0,
             y:0
@@ -476,29 +534,67 @@ class Select{
             x:0,
             y:0
         };
+
+        this.selectingPoints = false;
     }
     isSelected(){
         return this.selected.length > 0;
     }
     doubleClickHandler(e){
-        console.log(e.target);
+        var closestLine = svg.getClosestLine(e);
+        console.log(closestLine);
+        var closestLineID = closestLine.lineID;
         this.resetSelection();
-        var line = this.svg;
-
+        this.selectingPoints = true;
+        this.selected = [closestLineID];
+        this.selectpoints.initSelection(e, closestLineID);
+        
     }
     mouseDownHandler(e){
-        // click is in the selected boxes
-        if(this.isSelected() && this.clickInSelected(e)){
-            this.clickedInSelection = true;
-            this.startSelection(e);
-        // click is outside the selection, therefore start new selection
-        } else{
-            this.resetSelection();
-            this.startSelection(e);
+        if(this.selectingPoints){
+            var inPoint = this.selectpoints.clickInPoint(e);
+            console.log("inpoint", inPoint);
+            if(!inPoint){
+                this.selectingPoints = false;
+                this.resetSelection();
+                this.selectpoints.reset();
+                this.startSelection(e);
+            }
+            this.selectpoints.mouseDownHandler(e, this.selected[0]);
+        } else {
+             // click is in the selected boxes
+            if(this.isSelected() && this.clickInSelected(e)){
+                this.clickedInSelection = true;
+                this.startSelection(e);
+            // click is outside the selection, therefore start new selection
+            } else{
+                this.resetSelection();
+                this.startSelection(e);
+            }
         }
-
     }
+    mouseMoveHandler(e){
+        if(this.selectingPoints){
+            this.selectpoints.mouseMoveHandler(e);
+        } else {
+            if(this.clickedInSelection){
+                this.updateSelectionBox(e);
+                this.updateMoveVec(e);
+                this.svg.moveLines(this.selected, this.moveVec);
+                this.svg.reRender();
+                this.svg.addTempElem(this.selectionBox);
+            } else {
+                this.updateSelectionBox(e);
+                this.setSelectionBox();
+                this.setSelectedLines();
+            }
 
+        }  
+    }
+    mouseUpHandler(){
+        this.clickedInSelection = false;
+        this.resetSelectionBox();
+    }
     setSelectedLines(){
         this.selected = this.svg.getLinesInRect([this.selectionLeftTopCorner, this.selectionBottomRightCorner ]);
  
@@ -509,16 +605,17 @@ class Select{
         }
     }
     clickInSelected(e){
+        //click point criteria
+
+        //selection box criteria
         if(!this.isSelected()){
             return false;
         }
-        console.log(e.target);
+        
         var point = svg.relativeMousePosition(e);
         var potentialIDs = svg.getLinesInPoint(point);
         const found = potentialIDs.some(r=> this.selected.includes(r))
         return found;
-
-
     }
     startSelection(e){
         this.moveVec = {
@@ -538,31 +635,11 @@ class Select{
         this.selectionBox.setAttribute('width',this.selectionBottomRightCorner.x - this.selectionLeftTopCorner.x);
         this.selectionBox.setAttribute('height', this.selectionBottomRightCorner.y - this.selectionLeftTopCorner.y);
     }
-    mouseMoveHandler(e){
-        if(this.clickedInSelection){
-            this.updateSelection(e);
-            this.svg.moveLines(this.selected, this.moveVec);
-            this.svg.reRender();
-            this.svg.addTempElem(this.selectionBox);
-        } else {
-            this.updateSelection(e);
-            this.setSelectionBox();
-            this.setSelectedLines();
-        }
-    }
-
-    updateSelection(e){
+    
+    updateSelectionBox(e){
         var point = svg.relativeMousePosition(e);
         var [minX, maxX] = [Math.min(point.x, this.originalLeftTopCorner.x), Math.max(point.x, this.originalLeftTopCorner.x)];
         var [minY, maxY] = [Math.min(point.y, this.originalLeftTopCorner.y), Math.max(point.y, this.originalLeftTopCorner.y)];
-  
-        this.moveVec = {
-            x: point.x -  this.oldCursorPosition.x,
-            y: point.y -  this.oldCursorPosition.y,
-        }
-
-        this.oldCursorPosition = point;
-
         this.selectionLeftTopCorner = {
             x: minX,
             y: minY,
@@ -572,6 +649,14 @@ class Select{
             x: maxX,
             y: maxY,
         };
+    }
+    updateMoveVec(e){
+        var point = svg.relativeMousePosition(e);
+        this.moveVec = {
+            x: point.x -  this.oldCursorPosition.x,
+            y: point.y -  this.oldCursorPosition.y,
+        }
+        this.oldCursorPosition = point;
 
     }
     removeCSS(){
@@ -584,7 +669,6 @@ class Select{
     resetSelection(){
         this.removeCSS();
         this.selected = [];
-        
     }
     resetSelectionBox(){
         this.originalLeftTopCorner = {
@@ -616,11 +700,11 @@ function setup(){
         assemblerSetup(thumbnails);
     }
     svg = new Svg(svgElement,layerSelected, layerInfo);
-    
-    select = new Select(svg);
-    selectpointsmode = new SelectPoints(svg);
-    outlinemode = new OutlineMode(svg);
     orientlinemode = new OrientLineMode(svg);
+    selectpointsmode = new SelectPoints(svg, orientlinemode);
+    select = new Select(svg, selectpointsmode);
+    outlinemode = new OutlineMode(svg);
+    
     constructionmode = new ConstructionMode(svg);
     
     svgElement.addEventListener("mousedown", function (e) {
@@ -670,11 +754,11 @@ function setup(){
         } 
         
     });
-    svgElement.addEventListener("dblclick", function () {
+    svgElement.addEventListener("dblclick", function (e) {
         if(setMode == selectMode){
             select.clickedInSelection = false;
             select.resetSelectionBox();
-            select.doubleClickHandler();
+            select.doubleClickHandler(e);
         }
         // Double-click detected
     });
