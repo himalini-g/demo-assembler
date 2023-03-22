@@ -1,21 +1,4 @@
 
-var svgHTML = "<svg class=\"svg\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"svgElement\" x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 600 400\" xml:space=\"preserve\"></svg>"
-
-
-var drawMode = "draw";
-var selectMode = "select";
-var setMode = drawMode;
-var pressed = false;
-var outlineLayer = "outline";
-var orientLayer = "orient";
-var constructionLayer = "construction";
-var layerSelected = constructionLayer;
-var svgElement = null;
-var mode = null;
-var layer = null;
-var svg = null;
-var select = null;
-var thumbnails = [];
 
 class Svg {
     constructor(element, activeLayer, layerInfo) {
@@ -25,16 +8,13 @@ class Svg {
         this.tempElems = [];
         this.layerSelected = activeLayer;
         this.layers = {};
+        this.text = {};
         this.layerColors = {};
         layerInfo.forEach(layer => {
             this.layers[layer.name] = {};
             this.layerColors[layer.name] = layer.color;
         });
     }
-    setLayer(layer){
-        this.layerSelected = layer;
-    }
-
     relativeMousePosition(point){
         var parentRect = this.element.getBoundingClientRect();
         return {
@@ -46,6 +26,20 @@ class Svg {
         var ID = this.uniqueID;
         this.uniqueID += 1;
         return ID;
+    }
+
+    addText(point, text, pointIsRelative=false, lineID){
+        var color = this.layerColors[this.layerSelected];
+        var relativePoint;
+        if(pointIsRelative){
+            relativePoint = point;
+        } else{
+            relativePoint = this.relativeMousePosition(point);
+        }
+        var textELement = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
+        this.element.appendChild(textELement.text);
+        this.text[textELement.id] = textELement;
+        return textELement.id;
     }
     addLine(point, pointIsRelative=false, closed=false){
         var color = this.layerColors[this.layerSelected];
@@ -78,6 +72,10 @@ class Svg {
         this.tempElems.forEach(elem =>{
             this.element.appendChild(elem);
         });
+        Object.entries(this.text).forEach(([_, elem])=> {
+            this.element.appendChild(elem.text);
+            elem.reRender();
+        })
     }
  
     getLayerAssembler(layer){
@@ -87,6 +85,12 @@ class Svg {
     }
     getLine(lineID){
         return this.layers[this.layerSelected][lineID];
+    }
+    genTextID(lineID){
+        return lineID + "_text";
+    }
+    getText(lineID){
+        return this.text[this.genTextID(lineID)];
     }
     updateSvgPath(point, lineID, pointIsRelative=false) {
         var relativePoint;
@@ -142,11 +146,15 @@ class Svg {
             vector: null,
             normals: null,
             normalIndex: null,
+            length: null,
             computeNormals(points){
                 var pointSum = {
                     x: points[0].x + points[1].x, 
                     y: points[0].y + points[1].y
                 }
+                var x = Math.abs(points[0].x - points[1].x)
+                var y = Math.abs(points[0].y - points[1].y)
+                this.length = Math.sqrt(x * x + y * y);
                 this.average = {
                     x: pointSum.x / 2.0,
                     y: pointSum.y / 2.0
@@ -164,13 +172,13 @@ class Svg {
                     y: (this.vector.x * -1)  + this.average.y,
                 }
                 this.normals = [normal1, normal2];
-                return [this.average, this.normals]
+                return [this.average, this.normals, length]
             },
             setNormalToRetrieve(index){
                 this.normalIndex = index;
             },
-            retrieveAverageNormal(){
-                return [this.average, this.normals[this.normalIndex]];
+            retrieveAverageNormalLength(){
+                return [this.average, this.normals[this.normalIndex], this.length];
             },
         }
         var [_, normals] = pickDir.computeNormals(this.getLine(lineID).points);
@@ -183,7 +191,22 @@ class Svg {
         pickDir.setNormalToRetrieve(1);
         return pickDir;
     }
-
+    deleteIDs(IDs){
+        IDs.forEach(id =>{
+            if(this.genTextID(id) in this.text){
+                delete this.text[this.genTextID(id)];
+            }
+            if(id in this.layers[this.layerSelected]){
+                delete this.layers[this.layerSelected][id];
+            }
+        });
+    }
+    checkMembership(ID){
+        if(ID in this.layers[this.layerSelected]){
+            return true;
+        }
+        return false;
+    }
     downloadSVG(){
         var preface = '<?xml version="1.0" standalone="no"?>\r\n';
         var svgBlob = new Blob([preface, this.element.outerHTML], {type:"image/svg+xml;charset=utf-8"});
@@ -202,7 +225,7 @@ class OutlineMode{
         this.svg = svg;
     }
     mouseDownHandler(e){
-        if(this.outlineID == null){
+        if(!this.svg.checkMembership(this.outlineID)){
             this.outlineID = this.svg.addLine(e, false, true);
         }
         this.svg.updateSvgPath(e, this.outlineID);
@@ -277,6 +300,7 @@ class SelectPoints{
 
     }
     mouseDownHandler(e){
+    
         var circleTarget = e.target;
         var id = circleTarget.id;
         this.circleTarget = id;
@@ -296,6 +320,7 @@ class SelectPoints{
         return false;
     }
     mouseMoveHandler(e){
+      
         var point = svg.relativeMousePosition(e);
         this.moveVec = {
             x: point.x -  this.oldCursorPosition.x,
@@ -311,6 +336,7 @@ class SelectPoints{
         }
 
         this.svg.getLine(this.lineID).reRender();
+        this.svg.getText(this.lineID).reRender();
         circle.reRender();
     }
     mouseUpHandler(){
@@ -319,7 +345,6 @@ class SelectPoints{
     renderPoints(){
         var points = this.svg.getLine(this.lineID).points;
         if(layerSelected == orientLayer){
-            console.log('hello');
             points = points.slice(0, 2);
         }
         points.forEach((point, index) => {
@@ -345,8 +370,6 @@ class SelectPoints{
             x:0,
             y:0
         };
-        
-        
     }
 }
 class OrientLineMode{
@@ -360,9 +383,11 @@ class OrientLineMode{
     reComp(lineID){
         const pickDir = this.orientDict[lineID];
         pickDir.computeNormals(this.svg.getLine(lineID).points);
-        var [average, normal] = pickDir.retrieveAverageNormal();
+        var [average, normal, length] = pickDir.retrieveAverageNormalLength();
         this.svg.getLine(lineID).removePoint();
         this.svg.getLine(lineID).removePoint();
+        this.svg.getText(lineID).point = average;
+        this.svg.getText(lineID).txt = Math.trunc(length).toString();
         this.svg.updateSvgPath(average, lineID, true);
         this.svg.updateSvgPath(normal, lineID, true);
     }
@@ -377,9 +402,10 @@ class OrientLineMode{
         else{
             const pickDir = this.svg.generatePerp(this.baseID, e);
             this.orientDict[this.baseID] = pickDir;
-            var [average, normal] = pickDir.retrieveAverageNormal();
+            var [average, normal, length] = pickDir.retrieveAverageNormalLength();
             this.svg.updateSvgPath(average, this.baseID, true);
             this.svg.updateSvgPath(normal, this.baseID, true);
+            this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
             this.baseID = null;
             this.baseLength = null;
         }
@@ -439,6 +465,8 @@ class Select{
         return this.selected.length > 0;
     }
     doubleClickHandler(e){
+        this.clickedInSelection = false;
+        this.resetSelectionBox();
         var closestLine = svg.getClosestLine(e);
         console.log(closestLine);
         var closestLineID = closestLine.lineID;
@@ -567,6 +595,7 @@ class Select{
     resetSelection(){
         this.removeCSS();
         this.selected = [];
+        this.selectpoints.reset();
     }
     resetSelectionBox(){
         this.originalLeftTopCorner = {
@@ -582,19 +611,20 @@ class Select{
             y:0
         };
         this.setSelectionBox();
-
+    }
+    deleteSelected(){
+        this.svg.deleteIDs(this.selected);
+        this.resetSelection();
     }
 }
 
 function setup(){
-   
     $("#svg-container").html(svgHTML);
     svgElement = document.getElementById("svgElement");
     mode = document.getElementById("mode");
     layer = document.getElementById("layer");
     if(svg){
-        thumbnails.push(svg);
-        assemblerSetup(thumbnails);
+        thumbnailsobj.addThumbnail(svg);
     }
     const layerInfo = 
     [
@@ -616,54 +646,48 @@ function setup(){
     select = new Select(svg, new SelectPoints(svg, orientlinemode));
     var outlinemode = new OutlineMode(svg);
     var constructionmode = new ConstructionMode(svg);
-    var mousedownMap = {};
-    mousedownMap[constructionLayer] = constructionmode;
-    mousedownMap[outlineLayer] = outlinemode;
-    mousedownMap[orientLayer] = orientlinemode;
+    var eventMap = {};
 
+    eventMap[drawMode] = {};
+    eventMap[selectMode] = {};
+    eventMap[drawMode][constructionLayer] = constructionmode;
+    eventMap[drawMode][outlineLayer] = outlinemode;
+    eventMap[drawMode][orientLayer] = orientlinemode;
+    eventMap[selectMode][constructionLayer] = select;
+    eventMap[selectMode][outlineLayer] = select;
+    eventMap[selectMode][orientLayer] = select;
     
     svgElement.addEventListener("mousedown", function (e) {
         pressed = true;
-        if(setMode == drawMode){
-            mousedownMap[layerSelected].mouseDownHandler(e);
-        } else if(setMode === selectMode){
-            select.mouseDownHandler(e);
-        } 
+        eventMap[setMode][layerSelected].mouseDownHandler(e);
     });
     
     svgElement.addEventListener("mousemove", function (e) {
-        if(pressed && setMode == drawMode){
-            mousedownMap[layerSelected].mouseMoveHandler(e);
-        } else if (pressed && setMode == selectMode){
-            select.mouseMoveHandler(e);
-        } 
+        if(pressed){
+            eventMap[setMode][layerSelected].mouseMoveHandler(e);
+        }
     });
     
     svgElement.addEventListener("mouseup", function () {
         pressed = false;
-
-        if(setMode == selectMode){
-            select.clickedInSelection = false;
-            select.resetSelectionBox();
-        } else if(setMode == drawMode){
-            mousedownMap[layerSelected].mouseUpHandler();
-        }
-        
+        eventMap[setMode][layerSelected].mouseUpHandler();
     });
     svgElement.addEventListener("dblclick", function (e) {
         if(setMode == selectMode){
-            select.clickedInSelection = false;
-            select.resetSelectionBox();
             select.doubleClickHandler(e);
         }
         // Double-click detected
     });
-    renderThumbnails();
+    $(document).keyup(function(e){
+        if(e.key === "Backspace") {
+            select.deleteSelected()
+        }
+    });
+    thumbnailsobj.render();
 }
 
 function rerenderAssemblage(){
-    assemblerSetup(thumbnails);
-
+    assemblerSetup(thumbnailsobj.export());
 }
 
 function downloadSVG(){
@@ -680,35 +704,60 @@ function changeLayer(){
     console.log(layer.value);
     select.resetSelection();
     layerSelected = layer.value;
-    svg.setLayer(layerSelected);
+    svg.layerSelected = layerSelected;
 }
-function click(){
-    console.log("o_0");
+function click(e){
 }
+
 class Thumbnails{
     constructor(){
-        this.svg = svg;
-        this.thumbnails = [];
+        this.thumbnailDiv = "#thumbnail-container";
+        this.thumbnails = {};
+        this.numberID = 0;
     }
-    addThumbnail(){
-
-    }
-}
-function renderThumbnails(){
-
-    $("#thumbnail-container").html("<div id=\"thumbnails\"></div>");
-    var thumbnail_container = document.getElementById("thumbnails");
-    thumbnails.forEach(function (thumbnail, i)
-    {
-        var id = i.toString() + "_thumbnail";
-        var thumbnailHTML = "<svg onclick=\"click()\" class=\"thumbnail\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"" + id + "\"x=\"0px\" y=\"0px\" width=\"150px\" height=\"100px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 200 200\" xml:space=\"preserve\"></svg>"
+    generateThumbnailElement(){
+        this.numberID += 1;
+        var id = this.numberID.toString() + "_thumbnail";
+        var thumbnailHTML = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"" + id + "\"x=\"0px\" y=\"0px\" width=\"150px\" height=\"100px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 200 200\" xml:space=\"preserve\"></svg>"
         $("#thumbnail-container").append(thumbnailHTML)
         var thumbnail_element = document.getElementById(id);
-        thumbnail.element = thumbnail_element;
-        thumbnail.reRender();
-        console.log(thumbnail_container);
-    })
+        thumbnail_element.setAttribute('onclick', "click()")
+        thumbnail_element.setAttribute('class', "thumbnail")
+        thumbnail_element.setAttribute('x', "10px");
+        thumbnail_element.setAttribute('y', "10px");
+        thumbnail_element.setAttribute('width', "75px");
+        thumbnail_element.setAttribute('height', "50px");
+        return thumbnail_element;
+    }
+    addThumbnail(svg){
+        var thumbnailElement = this.generateThumbnailElement();
+        svg.element = thumbnailElement;
+        this.thumbnails[thumbnailElement.id] = svg;
+    }
+    render(){
+        Object.entries(this.thumbnails).forEach(([_, svg]) => svg.reRender());
+    }
+    export(){
+        return Object.entries(this.thumbnails).map(([_, svg]) => svg);
+    }
 }
+
+
+var svgHTML = "<svg class=\"svg\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"svgElement\" x=\"0px\" y=\"0px\" width=\"600px\" height=\"400px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 600 400\" xml:space=\"preserve\"></svg>"
+var drawMode = "draw";
+var selectMode = "select";
+var setMode = drawMode;
+var pressed = false;
+var outlineLayer = "outline";
+var orientLayer = "orient";
+var constructionLayer = "construction";
+var layerSelected = constructionLayer;
+var svgElement = null;
+var mode = null;
+var layer = null;
+var svg = null;
+var select = null;
+var thumbnailsobj = new Thumbnails();
 
 setup();
 

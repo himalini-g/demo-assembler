@@ -27,6 +27,31 @@ class Circle {
         this.circle.setAttribute("cx", this.point.x);
     }
 }
+class TextSVG {
+    constructor(point, ID, txt, fill="#0000ff") {
+        this.fill = fill;
+        this.point = point;
+        this.id = ID;
+        this.txt = txt;
+        this.text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        this.text.setAttribute("fill", this.fill);
+        this.text.setAttribute("y", this.point.y);
+        this.text.setAttribute("x", this.point.x);
+        this.text.setAttribute("id", this.id);
+        this.text.textContent  = this.txt;
+    }
+    moveByVector(vec){
+        this.point = {
+                x: this.point.x + vec.x, 
+                y: this.point.y + vec.y,
+        }
+    }
+    reRender(){
+        this.text.setAttribute("y", this.point.y);
+        this.text.setAttribute("x", this.point.x);
+        this.text.textContent  = this.txt;
+    }
+}
 
 class Line {
     constructor(ID, lineClosed=false, stroke="#000") {
@@ -50,7 +75,9 @@ class Line {
             y: point.y + vec.y,
         }
         this.points[index] = point;
-
+        if(this.lineClosed){
+            this.closePoint = this.points[0];
+        }
     }
     removePoint(index=null){
         if(index == null){
@@ -65,13 +92,15 @@ class Line {
     }
     insertPoint(index, point){
         this.points.splice(index, 0, point);
+        if(this.lineClosed){
+            this.closePoint = this.points[0];
+        }
     }
     appendPoint(point){
         this.points.push(point);
         if(this.lineClosed){
             this.closePoint = this.points[0];
         }
-
         this.path.setAttribute("d", this.toString());
     }
     pointInRect(point){
@@ -134,4 +163,5 @@ class Line {
 if (typeof(module) !== "undefined") {
 	module.exports.Line = Line;
     module.exports.Circle = Circle;
+    module.exports.TextSVG = TextSVG; // Text is an inbuitl
 }
