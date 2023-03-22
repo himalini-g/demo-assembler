@@ -200,44 +200,22 @@ class OutlineMode{
     constructor(svg){
         this.outlineID = null;
         this.svg = svg;
-        this.penmode = null;
     }
     mouseDownHandler(e){
         if(this.outlineID == null){
             this.outlineID = this.svg.addLine(e, false, true);
-            this.penmode = new PenMode(this.svg, this.outlineID);
         }
-        this.penmode.mouseDownHandler(e);
+        this.svg.updateSvgPath(e, this.outlineID);
     }
     mouseMoveHandler(e){
-        this.mouseDownHandler(e);
+        this.svg.getLine(this.outlineID).removePoint();
+        this.svg.updateSvgPath(e, this.outlineID);
+
     }
     mouseUpHandler(e){
-        this.penmode.mouseUpHandler(e);
     }
 }
-class PenMode{
-    constructor(svg, lineID){
-        this.mouseDraggedPoint = null;
-        this.addedToLine = false;
-        this.svg = svg;
-        this.lineID = lineID;
-    }
-    mouseDownHandler(e, pointIsRelative=false){
-        this.mouseDraggedPoint = e;
-        if(!this.addedToLine){
-            this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
-            this.addedToLine = true;
-        } else{
-            this.svg.getLine(this.lineID).removePoint();
-            this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
-        }
-    }
-    mouseUpHandler(){
-        this.mouseDraggedPoint = null;
-        this.addedToLine = false;
-    }
-}
+
 class ConstructionMode{
     constructor(svg){
         this.curLineID = null;
@@ -378,11 +356,7 @@ class OrientLineMode{
         this.color = "#00ff00";
         this.baseLength = null;
         this.baseID = null;
-        this.curPenMode = null;
         this.orientDict = {};
-        this.addedToLine = false;
-        this.mouseDraggedPoint = null;
-
     }
     reComp(lineID){
         const pickDir = this.orientDict[lineID];
@@ -396,11 +370,10 @@ class OrientLineMode{
     mouseDownHandler(e){
         if(this.baseID == null){
             this.baseID = this.svg.addLine(e);
-            this.curPenMode = new PenMode(this.svg, this.baseID);  
-            // this.svg.updateSvgPath(e, this.baseID);
+            this.svg.updateSvgPath(e, this.baseID);
         }
         else if(this.baseID != null && this.baseLength <= 1){
-            this.curPenMode.mouseDownHandler(e);
+            this.svg.updateSvgPath(e, this.baseID);
         }
         else{
             const pickDir = this.svg.generatePerp(this.baseID, e);
@@ -410,21 +383,18 @@ class OrientLineMode{
             this.svg.updateSvgPath(normal, this.baseID, true);
             this.baseID = null;
             this.baseLength = null;
-            this.curPenMode = null;
-
         }
        
     }
     mouseMoveHandler(e){
-        if(this.curPenMode != null){
-            this.curPenMode.mouseDownHandler(e);
+        if(this.baseID != null){
+            this.svg.getLine(this.baseID).removePoint();
+            this.svg.updateSvgPath(e, this.baseID);
         }
     }
     mouseUpHandler(){
-        
-        if(this.curPenMode != null){
+        if(this.baseID != null){
             this.baseLength = this.svg.getLine(this.baseID).points.length;
-            this.curPenMode.mouseUpHandler();
         }
     }
 }
