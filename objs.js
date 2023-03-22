@@ -1,11 +1,11 @@
 
-class Point {
+class Circle {
     constructor(point, ID, radius=3, fill="#0000ff", stroke="#0000c8"){
         this.fill = fill;
         this.stroke = stroke;
         this.point = point;
         this.radius = radius;
-        this.id = "point_" + ID.toString();
+        this.id = "circle_" + ID.toString();
         this.circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         this.circle.setAttribute("fill", this.fill);
         this.circle.setAttribute("stroke", this.stroke);
@@ -133,5 +133,5 @@ class Line {
 
 if (typeof(module) !== "undefined") {
 	module.exports.Line = Line;
-    module.exports.Point = Point;
+    module.exports.Circle = Circle;
 }

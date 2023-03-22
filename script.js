@@ -4,10 +4,8 @@ var svgHTML = "<svg class=\"svg\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xli
 
 var drawMode = "draw";
 var selectMode = "select";
-var selectPointsMode = "select points";
 var setMode = drawMode;
 var pressed = false;
-var dragged = false;
 var outlineLayer = "outline";
 var orientLayer = "orient";
 var constructionLayer = "construction";
@@ -17,27 +15,8 @@ var mode = null;
 var layer = null;
 var svg = null;
 var select = null;
-var selectpointsmode = null;
-var outlinemode = null;
-var orientlinemode = null;
-var constructionmode = null;
 var thumbnails = [];
 
-const layerInfo = 
-[
-    {
-        name: outlineLayer,
-        color: "#FF0000",
-    },
-    {
-        name: orientLayer,
-        color: "#00FF00",
-    },
-    {
-        name: constructionLayer,
-        color: "#000000",
-    }
-]
 class Svg {
     constructor(element, activeLayer, layerInfo) {
         this.name = "svg"
@@ -52,20 +31,10 @@ class Svg {
             this.layerColors[layer.name] = layer.color;
         });
     }
-    setElement(element){
-        this.element = element;
-    }
     setLayer(layer){
         this.layerSelected = layer;
     }
-    activeLayer(){
-        return this.layerSelected;
-        
-    }
-    removeLinePoint(lineID, index=null){
-        var key = this.activeLayer();
-        this.layers[key][lineID].removePoint(index);
-    }
+
     relativeMousePosition(point){
         var parentRect = this.element.getBoundingClientRect();
         return {
@@ -78,15 +47,9 @@ class Svg {
         this.uniqueID += 1;
         return ID;
     }
-    
-    addTempElem(elem){
-        this.tempElems.push(elem);
-    }
     addLine(point, pointIsRelative=false, closed=false){
-        var key = this.activeLayer();
-        var color = this.layerColors[key];
+        var color = this.layerColors[this.layerSelected];
         var line = new Line(this.validID(), closed, color);
-
         var relativePoint;
         if(pointIsRelative){
             relativePoint = point;
@@ -96,13 +59,12 @@ class Svg {
         
         line.appendPoint(relativePoint);
         this.element.appendChild(line.path);
-        this.layers[key][line.id] = line;
+        this.layers[this.layerSelected][line.id] = line;
   
         return line.id;
     }
     getAllIDs(){
-        var key = this.activeLayer();
-        var allIDs = Object.keys(this.layers[key]).map(lineID => lineID);
+        var allIDs = Object.keys(this.layers[this.layerSelected]).map(lineID => lineID);
         return allIDs;
     }
     reRender(){
@@ -123,51 +85,28 @@ class Svg {
             return line.getPointsArray();
         })
     }
+    getLine(lineID){
+        return this.layers[this.layerSelected][lineID];
+    }
     updateSvgPath(point, lineID, pointIsRelative=false) {
-        var key = this.activeLayer();
         var relativePoint;
         if(pointIsRelative){
             relativePoint = point;
         } else{
             relativePoint = this.relativeMousePosition(point);
         }
-        this.layers[key][lineID].appendPoint(relativePoint);
+        this.layers[this.layerSelected][lineID].appendPoint(relativePoint);
         return lineID;
-       
     }
     clearTemp(){
         this.tempElems = [];
     }
-    lineRerender(lineID){
-        var key = this.activeLayer();
-        var line = this.layers[key][lineID];
-        line.reRender();
-
-    }
-    movePointInLine(lineID, index, vec){
- 
-        var key = this.activeLayer();
-        var line = this.layers[key][lineID];
-        line.movePoint(index, vec);
-
-    }
 
     moveLines(lineIDs, vec){
-        var key = this.activeLayer();
-        lineIDs.map(id => this.layers[key][id].moveByVector(vec));
-    }
-    getLineLength(lineID){
-        var key = this.activeLayer();
-        return this.layers[key][lineID].length;
-
-    }
-    getLinePoints(lineID) {
-        var key = this.activeLayer();
-        return this.layers[key][lineID].points;
+        lineIDs.map(id => this.layers[this.layerSelected][id].moveByVector(vec));
     }
     getLinesInPoint(point){
-        var key = this.activeLayer();
-        var selectedIDs = Object.entries(this.layers[key]).reduce((acc, [_,curLine]) => {
+        var selectedIDs = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine]) => {
             if(curLine.pointInRect(point)){
                 acc.push(curLine.id)
             }
@@ -176,9 +115,7 @@ class Svg {
         return selectedIDs;
     }
     getLinesInRect(rect){
-        var key = this.activeLayer();
-
-        var selectedIDs = Object.entries(this.layers[key]).reduce((acc, [_,curLine])=> {
+        var selectedIDs = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
             if(curLine.inRect(rect)){
                 acc.push(curLine.id)
             }
@@ -187,9 +124,8 @@ class Svg {
         return selectedIDs;
     }
     getClosestLine(point){
-        var key = this.activeLayer();
         var relativePoint = this.relativeMousePosition(point);
-        var closestLine = Object.entries(this.layers[key]).reduce((acc, [_,curLine])=> {
+        var closestLine = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
             var distance = minDistanceToLine(relativePoint, curLine.points);
             if( distance < acc.distance ){
                 acc.distance = distance;
@@ -237,7 +173,7 @@ class Svg {
                 return [this.average, this.normals[this.normalIndex]];
             },
         }
-        var [_, normals] = pickDir.computeNormals(this.getLinePoints(lineID));
+        var [_, normals] = pickDir.computeNormals(this.getLine(lineID).points);
         var distNormal2 = dist2(relativePoint, normals[1]);
         var distNormal1 = dist2(relativePoint, normals[0]);
         if(distNormal1 < distNormal2){
@@ -270,9 +206,11 @@ class OutlineMode{
         if(this.outlineID == null){
             this.outlineID = this.svg.addLine(e, false, true);
             this.penmode = new PenMode(this.svg, this.outlineID);
-    
         }
         this.penmode.mouseDownHandler(e);
+    }
+    mouseMoveHandler(e){
+        this.mouseDownHandler(e);
     }
     mouseUpHandler(e){
         this.penmode.mouseUpHandler(e);
@@ -287,12 +225,11 @@ class PenMode{
     }
     mouseDownHandler(e, pointIsRelative=false){
         this.mouseDraggedPoint = e;
-        
         if(!this.addedToLine){
             this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
             this.addedToLine = true;
         } else{
-            this.svg.removeLinePoint(this.lineID);
+            this.svg.getLine(this.lineID).removePoint();
             this.svg.updateSvgPath(e, this.lineID, pointIsRelative);
         }
     }
@@ -322,7 +259,7 @@ class SelectPoints{
         this.svg = svg;
         this.tolerance = 2;
         this.lineID = null;
-        this.pointDict = {};
+        this.circleDict = {};
         this.circleTarget = null;
         this.moveVec = {
             x:0,
@@ -335,7 +272,7 @@ class SelectPoints{
     }
     reset(){
         this.lineID = null;
-        this.pointDict = {};
+        this.circleDict = {};
         this.circleTarget = null;
         this.moveVec = {
             x:0,
@@ -376,7 +313,7 @@ class SelectPoints{
     clickInPoint(e){
         var circleTarget = e.target;
         var id = circleTarget.id;
-        if(id in this.pointDict){
+        if(id in this.circleDict){
             return true;
         }
         return false;
@@ -388,41 +325,40 @@ class SelectPoints{
             y: point.y -  this.oldCursorPosition.y,
         }
         this.oldCursorPosition = point;
-        var point = this.pointDict[this.circleTarget].point;
-        var index = this.pointDict[this.circleTarget].index;
-        point.moveByVector(this.moveVec);
-        this.svg.movePointInLine(this.lineID, index, this.moveVec);
+        var circle = this.circleDict[this.circleTarget].circle;
+        var index = this.circleDict[this.circleTarget].index;
+        circle.moveByVector(this.moveVec);
+        this.svg.getLine(this.lineID).movePoint(index, this.moveVec);
         if(layerSelected == orientLayer){
             this.orientlinemode.reComp(this.lineID);
         }
 
-        this.svg.lineRerender(this.lineID);
-        point.reRender();
+        this.svg.getLine(this.lineID).reRender();
+        circle.reRender();
     }
     mouseUpHandler(e){
         this.circleTarget = null;
     }
     renderPoints(){
-       
-        var points = this.svg.getLinePoints(this.lineID);
+        var points = this.svg.getLine(this.lineID).points;
         if(layerSelected == orientLayer){
             console.log('hello');
             points = points.slice(0, 2);
         }
         points.forEach((point, index) => {
-            var pointElem = new Point(point, index, this.tolerance);
-            this.pointDict[pointElem.id] = {
-                point: pointElem,
+            var circleElement = new Circle(point, index, this.tolerance);
+            this.circleDict[circleElement.id] = {
+                circle: circleElement,
                 index: index
             };
-            this.svg.addTempElem(pointElem.circle);
+            this.svg.tempElems.push(circleElement.circle);
         });
         this.svg.reRender();
     }
     mouseUpHandler(e){
   
         this.lineID = null;
-        this.pointDict = {};
+        this.circleDict = {};
         this.circleTarget = null;
         this.moveVec = {
             x:0,
@@ -444,14 +380,16 @@ class OrientLineMode{
         this.baseID = null;
         this.curPenMode = null;
         this.orientDict = {};
+        this.addedToLine = false;
+        this.mouseDraggedPoint = null;
 
     }
     reComp(lineID){
         const pickDir = this.orientDict[lineID];
-        pickDir.computeNormals(this.svg.getLinePoints(lineID));
+        pickDir.computeNormals(this.svg.getLine(lineID).points);
         var [average, normal] = pickDir.retrieveAverageNormal();
-        this.svg.removeLinePoint(lineID);
-        this.svg.removeLinePoint(lineID);
+        this.svg.getLine(lineID).removePoint();
+        this.svg.getLine(lineID).removePoint();
         this.svg.updateSvgPath(average, lineID, true);
         this.svg.updateSvgPath(normal, lineID, true);
     }
@@ -459,32 +397,23 @@ class OrientLineMode{
         if(this.baseID == null){
             this.baseID = this.svg.addLine(e);
             this.curPenMode = new PenMode(this.svg, this.baseID);  
-            this.curPenMode.mouseDownHandler(e);
+            // this.svg.updateSvgPath(e, this.baseID);
         }
         else if(this.baseID != null && this.baseLength <= 1){
-
             this.curPenMode.mouseDownHandler(e);
         }
         else{
             const pickDir = this.svg.generatePerp(this.baseID, e);
             this.orientDict[this.baseID] = pickDir;
             var [average, normal] = pickDir.retrieveAverageNormal();
-            this.curPenMode.mouseDownHandler(average, true);
-            this.curPenMode.mouseUpHandler();
-            this.curPenMode.mouseDownHandler(normal, true);
-            this.curPenMode.mouseUpHandler();
+            this.svg.updateSvgPath(average, this.baseID, true);
+            this.svg.updateSvgPath(normal, this.baseID, true);
             this.baseID = null;
             this.baseLength = null;
             this.curPenMode = null;
 
         }
        
-    }
-    movePointHandler(e, lineID){
-      
-
-        
-
     }
     mouseMoveHandler(e){
         if(this.curPenMode != null){
@@ -494,7 +423,7 @@ class OrientLineMode{
     mouseUpHandler(){
         
         if(this.curPenMode != null){
-            this.baseLength = this.svg.getLineLength(this.baseID);
+            this.baseLength = this.svg.getLine(this.baseID).points.length;
             this.curPenMode.mouseUpHandler();
         }
     }
@@ -509,7 +438,7 @@ class Select{
         this.selectionBox.setAttribute('stroke','gray')
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
-        this.svg.addTempElem(this.selectionBox);
+        this.svg.tempElems.push(this.selectionBox);
         // this.svg.element.appendChild(this.selectionBox);
         this.selected = [];
         
@@ -582,7 +511,7 @@ class Select{
                 this.updateMoveVec(e);
                 this.svg.moveLines(this.selected, this.moveVec);
                 this.svg.reRender();
-                this.svg.addTempElem(this.selectionBox);
+                this.svg.tempElems.push(this.selectionBox);
             } else {
                 this.updateSelectionBox(e);
                 this.setSelectionBox();
@@ -696,62 +625,60 @@ function setup(){
     layer = document.getElementById("layer");
     if(svg){
         thumbnails.push(svg);
-     
         assemblerSetup(thumbnails);
     }
+    const layerInfo = 
+    [
+        {
+            name: outlineLayer,
+            color: "#FF0000",
+        },
+        {
+            name: orientLayer,
+            color: "#00FF00",
+        },
+        {
+            name: constructionLayer,
+            color: "#000000",
+        }
+    ]
     svg = new Svg(svgElement,layerSelected, layerInfo);
-    orientlinemode = new OrientLineMode(svg);
-    selectpointsmode = new SelectPoints(svg, orientlinemode);
-    select = new Select(svg, selectpointsmode);
-    outlinemode = new OutlineMode(svg);
-    
-    constructionmode = new ConstructionMode(svg);
+    var orientlinemode = new OrientLineMode(svg);
+    select = new Select(svg, new SelectPoints(svg, orientlinemode));
+    var outlinemode = new OutlineMode(svg);
+    var constructionmode = new ConstructionMode(svg);
+    var mousedownMap = {};
+    mousedownMap[constructionLayer] = constructionmode;
+    mousedownMap[outlineLayer] = outlinemode;
+    mousedownMap[orientLayer] = orientlinemode;
+
     
     svgElement.addEventListener("mousedown", function (e) {
         pressed = true;
-        if(setMode == drawMode && layerSelected == constructionLayer){
-            constructionmode.mouseDownHandler(e);
-        } else if(setMode == selectPointsMode){
-            selectpointsmode.mouseDownHandler(e);
+        if(setMode == drawMode){
+            mousedownMap[layerSelected].mouseDownHandler(e);
         } else if(setMode === selectMode){
             select.mouseDownHandler(e);
-        } else if(setMode === drawMode && layerSelected == outlineLayer){
-            outlinemode.mouseDownHandler(e);
-        } else if(setMode == drawMode && layerSelected == orientLayer){
-            orientlinemode.mouseDownHandler(e);
-        }
+        } 
     });
     
     svgElement.addEventListener("mousemove", function (e) {
-        if(pressed){
-            dragged = true;
-        }
-        if(pressed && setMode == drawMode && layerSelected == constructionLayer){
-            constructionmode.mouseMoveHandler(e);
-        } else if(pressed && setMode == selectPointsMode){
-            selectpointsmode.mouseMoveHandler(e);
+        if(pressed && setMode == drawMode){
+            mousedownMap[layerSelected].mouseMoveHandler(e);
         } else if (pressed && setMode == selectMode){
             select.mouseMoveHandler(e);
-        } else if(pressed && setMode === drawMode && layerSelected == outlineLayer){
-            outlinemode.mouseDownHandler(e);
-        } else if(pressed && setMode == drawMode && layerSelected == orientLayer){
-            orientlinemode.mouseMoveHandler(e);
-        }
+        } 
     });
     
     svgElement.addEventListener("mouseup", function () {
         pressed = false;
-        dragged = false;
+
         if(setMode == selectMode){
             select.clickedInSelection = false;
             select.resetSelectionBox();
-        } else if(setMode == selectPointsMode){
-            selectpointsmode.mouseUpHandler()
-        } else if(setMode == drawMode && layerSelected == outlineLayer){
-            outlinemode.mouseUpHandler();
-        } else if( setMode == drawMode && layerSelected == orientLayer){
-            orientlinemode.mouseUpHandler();
-        } 
+        } else if(setMode == drawMode){
+            mousedownMap[layerSelected].mouseUpHandler();
+        }
         
     });
     svgElement.addEventListener("dblclick", function (e) {
@@ -764,16 +691,15 @@ function setup(){
     });
     renderThumbnails();
 }
+
 function rerenderAssemblage(){
     assemblerSetup(thumbnails);
 
 }
+
 function downloadSVG(){
     svg.downloadSVG();
 }
-
-
-
 
 function changeMode(){
     console.log(mode.value);
@@ -809,7 +735,7 @@ function renderThumbnails(){
         var thumbnailHTML = "<svg onclick=\"click()\" class=\"thumbnail\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"" + id + "\"x=\"0px\" y=\"0px\" width=\"150px\" height=\"100px\" viewBox=\"0 0 600 400\" enable-background=\"new 0 0 200 200\" xml:space=\"preserve\"></svg>"
         $("#thumbnail-container").append(thumbnailHTML)
         var thumbnail_element = document.getElementById(id);
-        thumbnail.setElement(thumbnail_element);
+        thumbnail.element = thumbnail_element;
         thumbnail.reRender();
         console.log(thumbnail_container);
     })
@@ -820,7 +746,4 @@ setup();
 if (typeof(module) !== "undefined") {
 	module.exports.Svg = Svg;
     module.exports.layerInfo = layerInfo;
-    module.exports.outlineLayer = outlineLayer;
-    module.exports.orientLayer = orientLayer;
-    module.exports.constructionLayer = constructionLayer;
 }
