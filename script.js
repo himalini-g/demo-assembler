@@ -210,9 +210,8 @@ class OutlineMode{
     mouseMoveHandler(e){
         this.svg.getLine(this.outlineID).removePoint();
         this.svg.updateSvgPath(e, this.outlineID);
-
     }
-    mouseUpHandler(e){
+    mouseUpHandler(){
     }
 }
 
@@ -314,7 +313,7 @@ class SelectPoints{
         this.svg.getLine(this.lineID).reRender();
         circle.reRender();
     }
-    mouseUpHandler(e){
+    mouseUpHandler(){
         this.circleTarget = null;
     }
     renderPoints(){
