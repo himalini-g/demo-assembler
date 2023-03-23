@@ -14,8 +14,8 @@ class Svg {
             this.layerColors[layer.name] = layer.color;
         });
     }
-    clearLayer(){
-        console.log("hello!")
+    clearLayer(layerName){
+        this.layers[layerName] = {};
     }
     relativeMousePosition(point){
         var parentRect = this.element.getBoundingClientRect();
@@ -29,10 +29,11 @@ class Svg {
         this.uniqueID += 1;
         return ID;
     }
-    getActiveLayer(){
-        return Object.entries(this.layers[this.layerSelected]).map(([_, line]) => line);
-    }
+ 
+    getLayer(layerName){
+        return Object.entries(this.layers[layerName]).map(([_, line]) => line);
 
+    }
     addText(point, text, pointIsRelative=false, lineID){
         var color = this.layerColors[this.layerSelected];
         var relativePoint;
@@ -236,6 +237,7 @@ class OutlineMode{
     constructor(svg){
         this.outlineID = null;
         this.svg = svg;
+
     }
     mouseDownHandler(e){
         if(!this.svg.checkMembership(this.outlineID)){
@@ -351,10 +353,10 @@ function setup(){
             color: "#000000",
         }
     ]
-    svg = new Svg(svgElement,layerSelected, layerInfo);
+    svg = new Svg(svgElement,LAYERSELECTED, layerInfo);
     var orientlinemode = new OrientLineMode(svg);
     select = new Select(svg, new SelectPoints(svg, orientlinemode));
-    layerthumbnails = new SVGLayerThumbnails(layerInfo, svg, select, width, height, thumbWidth, thumbHeight, thumbnailClass, layerDivID);
+    layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
     var outlinemode = new OutlineMode(svg);
     var constructionmode = new ConstructionMode(svg);
     var eventMap = {};
@@ -370,22 +372,22 @@ function setup(){
     
     svgElement.addEventListener("mousedown", function (e) {
         pressed = true;
-        eventMap[setMode][layerSelected].mouseDownHandler(e);
+        eventMap[SETMODE][LAYERSELECTED].mouseDownHandler(e);
     });
     
     svgElement.addEventListener("mousemove", function (e) {
         if(pressed){
-            eventMap[setMode][layerSelected].mouseMoveHandler(e);
+            eventMap[SETMODE][LAYERSELECTED].mouseMoveHandler(e);
         }
     });
     
     svgElement.addEventListener("mouseup", function () {
         pressed = false;
-        eventMap[setMode][layerSelected].mouseUpHandler();
-        layerthumbnails.reRenderActiveLayer();
+        eventMap[SETMODE][LAYERSELECTED].mouseUpHandler();
+        layerthumbnails.reRenderLayer(svg.layerSelected);
     });
     svgElement.addEventListener("dblclick", function (e) {
-        if(setMode == selectMode){
+        if(SETMODE == selectMode){
             select.doubleClickHandler(e);
         }
         // Double-click detected
@@ -405,15 +407,7 @@ function rerenderAssemblage(){
 function downloadSVG(){
     svg.downloadSVG();
 }
-
-function changeMode(){
-    console.log(mode.value);
-    select.resetSelection();
-    setMode = mode.value;
-}
-function click(e){
-}
-function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeight=75,  htmlClass="thumbnail", id){
+function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeight=75,  htmlClass="svg", id){
     var xmlns = "http://www.w3.org/2000/svg";
     var svgElem = document.createElementNS(xmlns, "svg");
     svgElem.setAttributeNS(null, "viewBox", "0 0 " + boxWidth + " " + boxHeight);
@@ -423,58 +417,98 @@ function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeig
     svgElem.setAttributeNS(null, "class", htmlClass)
     return svgElem;
 }
-function makeDiv(id, text=""){
+function makeDiv(id, text="", classCSS=""){
+    console.log(classCSS);
     var block_to_insert = document.createElement( 'div' );
     block_to_insert.id = id;
+    
     block_to_insert.innerHTML = text;
+    block_to_insert.setAttributeNS(null, "class",  classCSS);
 
     return block_to_insert;
 }
 function makeButton(text){
     var button = document.createElement( 'button' );
+    console.log(text);
     button.innerHTML = text
     return button
 }
-function layerChange(e){
-    console.log(e.target.id);
-    select.resetSelection();
-    layerSelected = e.target.id;
-    svg.layerSelected = layerSelected;
-}
-function clearLayer(e){
-    console.log(e);
-}
-class SVGLayerThumbnails{
-    constructor(layerInfo, svg, select, width, height, thumbWidth, thumbHeight, thumbnailClass, layerDivID){
+
+class SvgUI{
+    constructor(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon, selectedCSS){
+        console.log(modeInfo);
         this.svg = svg;
         this.select = select;
         this.layerElements = {};
+        this.layerDivElements= {};
         this.width = width;
         this.heigth =  height;
-        this.thumbWidth =  thumbWidth;
-        this.thumbHeight = thumbHeight;
-        this.thumbnailClass = thumbnailClass;
+        this.thumbnailWidth =  thumbnailWidth;
+        this.thumbnailHeight = thumbnailHeight;
+        this.thumbnailDivClass = thumbnailDivClass;
         this.layerDivID = layerDivID;
+        this.icon = clearicon;
+        this.selectedCSS = selectedCSS
         this.layerDivElement =  document.getElementById(this.layerDivID)
+        this.modeButtons = {}
+        modeInfo.forEach(mode =>{
+            var modeButton = document.getElementById(mode.modeButtonDivID);
+            console.log(modeButton);
+            this.modeButtons[mode.modeName] = modeButton;
+            modeButton.onclick = this.changeModeLambda(mode.modeName,modeButton);
+        })
         layerInfo.forEach(layer => {
-            var thumbnailElemNS = SVGElement(width, height, thumbWidth, thumbHeight, thumbnailClass, layer.name);
-            var thumbnailDIV = makeDiv(thumbnailElemNS.id + "_container", layer.name);
-            var clearButton = makeButton("clear layer");
+            var thumbnailElemNS = SVGElement(width, height, thumbnailWidth, thumbnailHeight, "svg", layer.name);
+            var thumbnailDIV = makeDiv(thumbnailElemNS.id + "_container", layer.name, this.thumbnailDivClass);
+            console.log(this.icon);
+            var clearButton = makeButton(this.icon + " clear layer");
             thumbnailDIV.appendChild(thumbnailElemNS);
             thumbnailDIV.appendChild(clearButton);
             this.layerDivElement.append(thumbnailDIV);
             var thumbnailElem = document.getElementById(layer.name);
             this.layerElements[layer.name] = thumbnailElem;
-            thumbnailElem.addEventListener("mousedown", layerChange, false);
-            clearButton.onclick = clearLayer;
+            this.layerDivElements[layer.name] = thumbnailDIV;
+            this.layerDivs
+            thumbnailDIV.addEventListener("mousedown", this.changeLayerLambda(layer.name, thumbnailDIV ), false, );
+            clearButton.onclick = this.clearLayerLambda(layer.name);
         });
+    }
+    changeModeLambda(modeName, modeButton){
+        const changeMode = e =>{
+            Object.entries(this.modeButtons).forEach(([_, div]) =>div.classList.remove(this.selectedCSS))
+            modeButton.classList.add(this.selectedCSS);
+            console.log(modeButton);
+            this.select.resetSelection();
+            SETMODE = modeName;
+            
+        }
+        return changeMode;
+    }
+    changeLayerLambda(name, thumbnailDIV ){
+        const changeSVGLayer = e =>{
+            this.select.resetSelection();
+            LAYERSELECTED = name;
+            Object.entries(this.layerDivElements).forEach(([_, div]) => div.classList.remove(this.selectedCSS))
+            thumbnailDIV.classList.add(this.selectedCSS);
+            this.svg.layerSelected = name;
+        }
+        return changeSVGLayer;
+    }
+    clearLayerLambda(name){
+        const clearSVGLayer = (e) => {
+            this.svg.clearLayer(name);
+            this.svg.reRender();
+            this.reRenderLayer(name);
+        };
+        return clearSVGLayer
     }
     destroy(){
         var layerContainer = document.getElementById(this.layerDivID);
         layerContainer.innerHTML = ""
     }
-    reRenderActiveLayer(){
-        var lineElems = this.svg.getActiveLayer();
+  
+    reRenderLayer(layerName){
+        var lineElems = this.svg.getLayer(layerName);
         var thumbnailElement = this.layerElements[this.svg.layerSelected]
         thumbnailElement.innerHTML = "";
         lineElems.forEach(line => {
@@ -484,34 +518,57 @@ class SVGLayerThumbnails{
             path.id = line.id + "_layer_thumbnail"
             return path;
         });
-        console.log(thumbnailElement);
     }
 }
 
 class Thumbnails{
-    constructor(width, height, thumbWidth, thumbHeight, thumbnailClass, thumbnailDiv){
+    constructor(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDiv){
         this.thumbnailDiv = thumbnailDiv;
         this.thumbnails = {};
         this.numberID = 0;
         this.width = width;
         this.heigth =  height;
-        this.thumbWidth =  thumbWidth;
-        this.thumbHeight = thumbHeight;
-        this.thumbnailClass = thumbnailClass;
+        this.thumbnailWidth =  thumbnailWidth;
+        this.thumbnailHeight = thumbnailHeight;
+        this.thumbnailDivClass = thumbnailDivClass;
     }
     generateThumbnailElement(){
 
         this.numberID += 1;
         var id = this.numberID.toString() + "_thumbnail";
-        var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbWidth, this.thumbHeight, this.thumbnailClass, id);
+        var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbnailWidth, this.thumbnailHeight, "svg", id);
         $("#" + this.thumbnailDiv).append(thumbnailElemNS);
         var thumbnail_element = document.getElementById(id);        
         return thumbnail_element;
     }
     addThumbnail(svg){
-        var thumbnailElement = this.generateThumbnailElement();
+        this.numberID += 1;
+        var id = this.numberID.toString() + "_thumbnail";
+        var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbnailWidth, this.thumbnailHeight, "svg", id);
+        var thumbnailDIV = makeDiv(id + "_container", svg.name, this.thumbnailDivClass);
+        var deleteButton = makeButton( "delete drawing");
+        thumbnailDIV.appendChild(thumbnailElemNS);
+        thumbnailDIV.appendChild(deleteButton);
+
+        $("#" + this.thumbnailDiv).append(thumbnailDIV);
+        var thumbnailElement = document.getElementById(id);
         svg.element = thumbnailElement;
         this.thumbnails[thumbnailElement.id] = svg;
+        
+        // var thumbnailElemNS = SVGElement(width, height, thumbnailWidth, thumbnailHeight, "svg", layer.name);
+        // var thumbnailDIV = makeDiv(thumbnailElemNS.id + "_container", layer.name, this.thumbnailDivClass);
+        // console.log(this.icon);
+        // var clearButton = makeButton(this.icon + " clear layer");
+        // thumbnailDIV.appendChild(thumbnailElemNS);
+        // thumbnailDIV.appendChild(clearButton);
+        // this.layerDivElement.append(thumbnailDIV);
+        // var thumbnailElem = document.getElementById(layer.name);
+        // this.layerElements[layer.name] = thumbnailElem;
+        // this.layerDivElements[layer.name] = thumbnailDIV;
+        // this.layerDivs
+        // thumbnailDIV.addEventListener("mousedown", this.changeLayerLambda(layer.name, thumbnailDIV ), false, );
+        // clearButton.onclick = this.clearLayerLambda(layer.name);
+        
     }
     render(){
         Object.entries(this.thumbnails).forEach(([_, svg]) => svg.reRender());
@@ -520,33 +577,48 @@ class Thumbnails{
         return Object.entries(this.thumbnails).map(([_, svg]) => svg);
     }
 }
-
-var width = 600;
-var height = 400;
-var thumbHeight = Math.ceil(height / 4);
-var thumbWidth = Math.ceil(width / 4);
-var thumbnailClass = "thumbnail"
-var thumbnailDivID = "thumbnail-container"
-var layerDivID = "layer-container"
-var svgID = "svgElement";
-var svgClass = "svg";
-var drawMode = "draw";
-var selectMode = "select";
-var setMode = drawMode;
+const width = 800;
+const height = 600;
+const thumbnailHeight = Math.ceil(height / 4);
+const thumbnailWidth = Math.ceil(width / 4);
+const thumbnailDivClass = "thumbnail-container"
+const thumbnailDivID = "thumbnail-container"
+const selectedCSS = "selected-element" 
+const layerDivID = "layer-container"
+const svgID = "svgElement";
+const svgClass = "svg";
+const drawMode = "draw";
+const drawModeButtonID = "draw-button";
+const selectMode = "select";
+const selectModeButtonID = "select-button";
+var SETMODE = drawMode;
+const modeInfo = [
+    {
+        modeName: drawMode,
+        modeButtonDivID: drawModeButtonID
+    },
+    {
+        modeName: selectMode,
+        modeButtonDivID: selectModeButtonID
+    },
+]
 var pressed = false;
-var outlineLayer = "outline";
-var orientLayer = "orient";
-var constructionLayer = "construction";
-var layerSelected = constructionLayer;
+const outlineLayer = "outline";
+const orientLayer = "orient";
+const constructionLayer = "construction";
+var LAYERSELECTED = constructionLayer;
+const trashicon = `<i class="fa fa-trash" aria-hidden="true"></i>`
+const clearicon = `<i class="fa fa-times" aria-hidden="true"></i>`
 var svgElement = null;
-var mode = null;
 var svg = null;
 var select = null;
 var layerthumbnails = null;
-var thumbnailsobj = new Thumbnails(width, height, thumbWidth, thumbHeight, thumbnailClass, thumbnailDivID);
+var thumbnailsobj = new Thumbnails(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDivID);
 
 setup();
 if (typeof(module) !== "undefined") {
 	module.exports.Svg = Svg;
     module.exports.layerInfo = layerInfo;
+    module.exports.width = width;
+    module.exports.height = height;
 }

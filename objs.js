@@ -95,6 +95,7 @@ class Line {
         if(this.lineClosed){
             this.closePoint = this.points[0];
         }
+
     }
     appendPoint(point){
         this.points.push(point);
@@ -141,7 +142,6 @@ class Line {
         if(this.lineClosed){
             this.closePoint = this.points[0];
         }
-
     }
     getPointsArray(){
         return this.points.map(point => [point.x, point.y]);

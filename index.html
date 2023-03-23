@@ -2,35 +2,41 @@
 <html lang="en">
   <head>
     <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
     <meta charset="utf-8" />
   </head>
   <body>
     <div>
-      <div id="drawing-panel">
-        <button onclick="downloadSVG()">download svg</button>
-        <button onclick="setup()">save drawing</button>
-        THis like changes modes n shee:
-        <select name="mode" id="mode" onchange="changeMode()">
-          <option value="draw">Draw</option>
-          <option value="select">Select</option>
-          <!-- <option value="joinery">Joinery</option> -->
-        </select>
+      <h1> Drawing panel </h1>
+      <div id="drawing-ui-container" class="drawing-container">
+        <div id="drawing-panel" class="drawing-panel">
+          <button onclick="downloadSVG()"> <i class="fa fa-download" aria-hidden="true"></i> download</button>
+          <button onclick="setup()"> save drawing</button>
+          <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
+          
+          <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
+          </select>
+        </div>
+        <div id="svg-container" class="svg-container">
+        </div>
+        <div id="layer-container">
+        </div>
       </div>
-      <div id="svg-container">
+     
+      
+    </div>
+    <div id="assembler-ui-container" class="drawing-container">
+      <div id="generating-tool-panel" class="drawing-panel">
+        <button onclick="rerenderAssemblage()">rerender assemblage</button>
       </div>
-      <div id="layer-container">
+      <div id="assembler-svg-container" class="svg-container">
+        <svg class="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="assembler-svg" x="0px" y="0px" width="600px" height="400px" viewBox="0 0 600 400" enable-background="new 0 0 600 400" xml:space="preserve"></svg>
       </div>
       <div id="thumbnail-container">
         <div id="thumbnails">
         </div>
       </div>
-    </div>
-    <div id="assembler-container">
-      <div>
-        <button onclick="rerenderAssemblage()">rerender assemblage</button>
-      </div>
-      <svg class="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="assembler-svg" x="0px" y="0px" width="600px" height="400px" viewBox="0 0 600 400" enable-background="new 0 0 600 400" xml:space="preserve"></svg>
     </div>
     
     <script src="objs.js"></script>

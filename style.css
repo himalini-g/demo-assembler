@@ -1,8 +1,11 @@
 html, body
+
 {
     padding: 0px;
     margin: 0px;
+    font-family: Arial;
 }
+
 .svg
 {
     border: 1px solid;
@@ -16,16 +19,69 @@ html, body
     stroke: lightblue;
     fill: lightblue;
 }
+.drawing-container
+{
+    display: flex;
+    outline: 1px solid black;
+    flex-direction: row;
+
+}
+.drawing-panel{
+    width : 150px;
+    display: flex;
+    flex-direction: column;
+    border:  1px solid black;
+    /* align-items: center; */
+}
+.generating-panel{
+    width : 100px;
+    display: flex;
+    flex-direction: column;
+
+}
+.layer {
+    align-items: vertical;
+}
+
 .path-selection 
 {
     outline: 1px solid blue;
 }
-.thumbnail 
-{
-    outline: 1px solid black;
+.svg{
+    background: white;
+    border: 1px solid black;
 }
-.thumbnail:hover 
+.svg-container {
+    padding: 30px;
+}
+.thumbnail-container
 {
-    outline: 1px solid blue;
+    padding: 10px;
+    background-color: gray;
+    outline: 1px solid black;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     
+}
+.selected-element {
+    background-color: lightgray;
+}
+.thumbnail-container:hover 
+{
+    background-color: lightgray;
+    
+}
+
+button {
+    font-size: 16px;
+    margin: 5px 10px;
+    Background-color: gray;
+    color: black;
+    border: 2px solid black;
+    border-radius:5px;
+  }
+button:hover{
+    Background-color: lightgray;
+
 }

@@ -1,5 +1,3 @@
-var width = 600;
-var height = 400;
 var recLim = 20;
 var debugView = true;
 

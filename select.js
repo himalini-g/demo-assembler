@@ -76,7 +76,7 @@ class SelectPoints{
         var index = this.circleDict[this.circleTarget].index;
         circle.moveByVector(this.moveVec);
         this.svg.getLine(this.lineID).movePoint(index, this.moveVec);
-        if(layerSelected == orientLayer){
+        if(this.svg.layerSelected == orientLayer){
             this.orientlinemode.reComp(this.lineID);
         }
 
@@ -92,7 +92,7 @@ class SelectPoints{
     }
     renderPoints(){
         var points = this.svg.getLine(this.lineID).points;
-        if(layerSelected == orientLayer){
+        if(this.svg.layerSelected == orientLayer){
             points = points.slice(0, 2);
         }
         points.forEach((point, index) => {
