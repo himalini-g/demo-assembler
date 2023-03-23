@@ -163,5 +163,5 @@ class Line {
 if (typeof(module) !== "undefined") {
 	module.exports.Line = Line;
     module.exports.Circle = Circle;
-    module.exports.TextSVG = TextSVG; // Text is an inbuitl
+    module.exports.TextSVG = TextSVG; // Text is an inbuilt
 }

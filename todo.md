@@ -6,12 +6,13 @@
 - [ ] naming files
 - [ ] load from thumbnails
 - [ ] fix the cursor interaction to work globally and treat exiting box as mouse up
-- [ ] make layers with thumbnails
+- [x] make layers with thumbnails
 - [ ] convert draw select to sidebar icons
 - [ ] add select to points level
 - [ ] add delete nodes 
 - [ ] add line smoothing on construction lines
 - [ ] brainstorm connections interface
+- [ ] address bug in assembler
 ## todo big
 
 - [ ] make a global file system
