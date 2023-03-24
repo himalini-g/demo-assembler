@@ -15,7 +15,8 @@ class Svg {
         });
     }
     clearLayer(layerName){
-        this.layers[layerName] = {};
+        var ids = Object.keys(this.layers[layerName]);
+        this.deleteIDs(ids);
     }
     relativeMousePosition(point){
         var parentRect = this.element.getBoundingClientRect();
@@ -292,6 +293,11 @@ class OrientLineMode{
         this.svg.updateSvgPath(normal, lineID, true);
     }
     mouseDownHandler(e){
+        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
+            this.baseID = null;
+            this.baseLength = null;
+            delete this.orientDict[this.baseID];
+        }
         if(this.baseID == null){
             this.baseID = this.svg.addLine(e);
             this.svg.updateSvgPath(e, this.baseID);
@@ -312,12 +318,22 @@ class OrientLineMode{
        
     }
     mouseMoveHandler(e){
+        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
+            this.baseID = null;
+            this.baseLength = null;
+            delete this.orientDict[this.baseID];
+        }
         if(this.baseID != null){
             this.svg.getLine(this.baseID).removePoint();
             this.svg.updateSvgPath(e, this.baseID);
         }
     }
     mouseUpHandler(){
+        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
+            this.baseID = null;
+            this.baseLength = null;
+            delete this.orientDict[this.baseID];
+        }
         if(this.baseID != null){
             this.baseLength = this.svg.getLine(this.baseID).points.length;
         }
@@ -358,7 +374,7 @@ function setup(passedSVG=null){
     var orientlinemode = new OrientLineMode(svg);
     select = new Select(svg, new SelectPoints(svg, orientlinemode));
     layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
-    historystack = new HistoryStack(select);
+    historystack = new HistoryStack(select, svg);
     var outlinemode = new OutlineMode(svg);
     var constructionmode = new ConstructionMode(svg);
     var eventMap = {};
@@ -376,7 +392,7 @@ function setup(passedSVG=null){
     svgElement.addEventListener("mousedown", function (e) {
         pressed = true;
         eventMap[SETMODE][LAYERSELECTED].mouseDownHandler(e);
-        historystack.addToHistoryStack(svg.layers[svg.layerSelected]);
+        
     });
     
     svgElement.addEventListener("mousemove", function (e) {
@@ -389,6 +405,7 @@ function setup(passedSVG=null){
         pressed = false;
         eventMap[SETMODE][LAYERSELECTED].mouseUpHandler();
         layerthumbnails.reRenderLayer(svg.layerSelected);
+        historystack.addToHistoryStack(svg.layers[svg.layerSelected]);
     });
     svgElement.addEventListener("dblclick", function (e) {
         if(SETMODE == selectMode){
@@ -398,7 +415,18 @@ function setup(passedSVG=null){
     });
     $(document).keyup(function(e){
         if(e.key === "Backspace") {
+            if(select.selected.length > 0){
+                historystack.addToHistoryStack(svg.layers[svg.layerSelected])
+            }
             select.deleteSelected()
+        }
+    });
+    document.addEventListener('keydown', function(event) {
+        
+        if (event.metaKey && event.shiftKey && event.key === 'z') {
+            historystack.redoCMD();
+        } else if (event.metaKey && event.key === 'z') {
+            historystack.undoCMD();
         }
     });
 }
@@ -452,6 +480,7 @@ class SvgUI{
         this.selectedCSS = selectedCSS
         this.layerDivElement =  document.getElementById(this.layerDivID)
         this.modeButtons = {}
+        this.modeEventListener = {}
         this.destroyLambda = () => {
             var layerContainer = document.getElementById(this.layerDivID);
             layerContainer.innerHTML = ""
@@ -459,7 +488,9 @@ class SvgUI{
         modeInfo.forEach(mode =>{
             var modeButton = document.getElementById(mode.modeButtonDivID);
             this.modeButtons[mode.modeName] = modeButton;
-            modeButton.onclick = this.changeModeLambda(mode.modeName,modeButton);
+            var modeEventListener = this.changeModeLambda(mode.modeName,modeButton);
+            modeButton.onclick = modeEventListener;
+            this.modeEventListener[mode.modeName] = modeEventListener;
         })
         layerInfo.forEach(layer => {
             var thumbnailElemNS = SVGElement(width, height, thumbnailWidth, thumbnailHeight, "svg", layer.name);
@@ -523,26 +554,65 @@ class SvgUI{
     }
 }
 class HistoryStack{
-    constructor(select){
+    constructor(select, svg){
+        this.svg = svg
         this.select = [];
-        this.stack = [];
+        this.undo = [];
+        this.redo = [];
     }
-    addToHistoryStack(layer){
-        var str = JSON.stringify(layer);
-        if(this.stack.length > 0){
-            var lastState =  this.stack.pop();
-            if(lastState == str){
-                this.stack.push(lastState);
+    addToHistoryStack(layerContent){
+        var state = JSON.stringify(layerContent);
+        if(this.undo.length > 0){
+            var lastState =  this.undo[this.undo.length - 1].state;
+            if(lastState == state){
                 return;
             }
         }
-        console.log(str);
-        this.stack.push(str);
+        console.log(state);
+        this.undo.push(
+            {
+                layer: this.svg.layerSelected,
+                state: state,
+                layerSize: Object.entries(layerContent).length
+            }
+        );
+        this.redo = [];
     }
-    popFromStack(){
-        var stateString = this.stack.pop();
-        var state = JSON.parse(stateString);
-        console.log(state)
+    popFromStack(stateObj){
+        var state = JSON.parse(stateObj.state);
+        for (let key in state) {
+            state[key] = this.remakeLine(state[key])
+            // do something for each key in the object 
+        }
+        console.log(state);
+        this.svg.clearLayer(stateObj.layer);
+        Object.entries(state).forEach(([key, line]) => {
+            this.svg.layers[stateObj.layer][key] = line;
+            this.svg.element.appendChild(line.path);
+        })
+        this.svg.reRender();
+    }
+    undoCMD(){
+        if(this.undo.length > 0){
+            var lastCMD = this.undo.pop();
+            this.popFromStack(lastCMD)
+            this.redo.push(lastCMD);
+
+        }
+        
+
+    }
+    redoCMD(){
+        if(this.redo.length > 0){
+            var lastCMD = this.redo.pop();
+            this.popFromStack(lastCMD);
+            this.undo.push(lastCMD);
+        }
+    }
+    remakeLine(lineString){
+        var line= new Line("");
+        line.jsonToObj(lineString);
+        return line;
     }
 }
 class Thumbnails{
@@ -631,6 +701,7 @@ class Thumbnails{
     export(){
         return Object.entries(this.thumbnails).map(([_, svg]) => svg);
     }
+    
 }
 const width = 800;
 const height = 600;

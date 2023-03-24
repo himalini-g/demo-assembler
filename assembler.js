@@ -2,8 +2,8 @@ var recLim = 20;
 var debugView = true;
 
 const attachments = {
-  'LIMB': 'MOUTH',
-  'MOUTH': 'LIMB',
+  'LIMB': ['MOUTH'],
+  'MOUTH': ['LIMB'],
 };
 
 
@@ -126,10 +126,10 @@ class Drawing {
     }
 
   }
-  getOrientIndexOptions(targetLabel){
+  getOrientIndexOptions(targetLabels){
 
     return this.orientLines
-    .filter(line => line.label == targetLabel)
+    .filter(line => targetLabels.include(line.label))
     .map(line => line.index);
   }
   getLines(){

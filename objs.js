@@ -68,6 +68,20 @@ class Line {
         this.lineClosed = lineClosed;
         this.closePoint = null;
     }
+    jsonToObj(json){
+        this.fill = json.fill;
+        this.strokeWidth = json.strokeWidth;
+        this.stroke = json.stroke;
+        this.points = json.points;
+        this.id = json.id;
+        this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        this.path.setAttribute("fill", this.fill);
+        this.path.setAttribute("stroke", this.stroke);
+        this.path.setAttribute("stroke-width",this.strokeWidth);
+        this.path.setAttribute("id", this.id);
+        this.lineClosed = json.lineClosed;
+        this.closePoint = json.lineClosed && this.points.length > 0 ? this.points[0] : null;
+    }
     movePoint(index, vec){
         var point = this.points[index];
         point =  {
