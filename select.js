@@ -166,7 +166,6 @@ class Select{
         this.clickedInSelection = false;
         this.resetSelectionBox();
         var closestLine = svg.getClosestLine(e);
-        console.log(closestLine);
         var closestLineID = closestLine.lineID;
         this.resetSelection();
         this.selectingPoints = true;

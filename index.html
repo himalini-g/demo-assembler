@@ -8,11 +8,11 @@
   </head>
   <body>
     <div>
-      <h1> Drawing panel </h1>
+      <div class="header"> Drawing panel </div>
       <div id="drawing-ui-container" class="drawing-container">
         <div id="drawing-panel" class="drawing-panel">
           <button onclick="downloadSVG()"> <i class="fa fa-download" aria-hidden="true"></i> download</button>
-          <button onclick="setup()"> save drawing</button>
+          <button onclick="reset()"> save drawing</button>
           <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
           
           <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
@@ -22,10 +22,9 @@
         </div>
         <div id="layer-container">
         </div>
-      </div>
-     
-      
+      </div> 
     </div>
+    <h1 class="header"> Assemble </h1>
     <div id="assembler-ui-container" class="drawing-container">
       <div id="generating-tool-panel" class="drawing-panel">
         <button onclick="rerenderAssemblage()">rerender assemblage</button>

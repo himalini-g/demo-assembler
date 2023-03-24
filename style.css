@@ -4,6 +4,14 @@ html, body
     padding: 0px;
     margin: 0px;
     font-family: Arial;
+    background-color: #1e2433;
+    color: white;
+}
+.header{
+    font-size: 40px;
+    padding: 10px 30px;
+    font-weight: bold;
+    /* background:  */
 }
 
 .svg
@@ -22,7 +30,7 @@ html, body
 .drawing-container
 {
     display: flex;
-    outline: 1px solid black;
+    /* outline: 1px solid black; */
     flex-direction: row;
 
 }
@@ -30,8 +38,6 @@ html, body
     width : 150px;
     display: flex;
     flex-direction: column;
-    border:  1px solid black;
-    /* align-items: center; */
 }
 .generating-panel{
     width : 100px;
@@ -52,12 +58,13 @@ html, body
     border: 1px solid black;
 }
 .svg-container {
+    background-color: #384052;
     padding: 30px;
 }
 .thumbnail-container
 {
     padding: 10px;
-    background-color: gray;
+    background-color: #1e2433;;
     outline: 1px solid black;
     display: flex;
     flex-direction: column;
@@ -65,20 +72,21 @@ html, body
     
 }
 .selected-element {
-    background-color: lightgray;
+    background-color: #384052;
 }
 .thumbnail-container:hover 
 {
-    background-color: lightgray;
+    background-color: #384052;
     
 }
 
 button {
-    font-size: 16px;
+    font-size: 20px;
+    height: 40px;
     margin: 5px 10px;
     Background-color: gray;
-    color: black;
-    border: 2px solid black;
+    color: white;
+    border: gray;
     border-radius:5px;
   }
 button:hover{

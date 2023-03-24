@@ -91,14 +91,23 @@ class Line {
         return;
     }
     insertPoint(index, point){
-        this.points.splice(index, 0, point);
+        var trunced = {
+            x: Math.trunc(point.x),
+            y: Math.trunc(point.y),
+        }
+        
+        this.points.splice(index, 0, trunced);
         if(this.lineClosed){
             this.closePoint = this.points[0];
         }
 
     }
     appendPoint(point){
-        this.points.push(point);
+        var trunced = {
+            x: Math.trunc(point.x),
+            y: Math.trunc(point.y),
+        }
+        this.points.push(trunced);
         if(this.lineClosed){
             this.closePoint = this.points[0];
         }
@@ -135,8 +144,8 @@ class Line {
     moveByVector(vec){
         this.points = this.points.map(point => {
             return {
-                x: point.x + vec.x, 
-                y: point.y + vec.y,
+                x: Math.trunc(point.x + vec.x), 
+                y: Math.trunc(point.y + vec.y),
             };
         })
         if(this.lineClosed){
