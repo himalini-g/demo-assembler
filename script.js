@@ -568,7 +568,6 @@ class HistoryStack{
                 return;
             }
         }
-        console.log(state);
         this.undo.push(
             {
                 layer: this.svg.layerSelected,
@@ -760,4 +759,5 @@ if (typeof(module) !== "undefined") {
     module.exports.layerInfo = layerInfo;
     module.exports.width = width;
     module.exports.height = height;
+    module.exports.SVGElement = SVGElement;
 }
