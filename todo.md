@@ -1,8 +1,9 @@
 ## bugs
 - [x] text from the orientation lines is not deleting
-- [ ] scrolling the mouse position is wrong
+- [ ] fix the cursor interaction to work globally and treat exiting box as mouse up
 - [ ] when changing layers, change the mode to draw
 - [ ] select does not work on perfectly vertical and horizontal lines
+- [ ] history stack exists but does not work too well
 ## todo
 - [x] get the selection hooked to the double click
 - [x] make exceptions for the orientation lines
@@ -10,11 +11,9 @@
 - [x] get a length working for the orientation line
 - [ ] naming files
 - [x] load from thumbnails
-- [ ] fix the cursor interaction to work globally and treat exiting box as mouse up
 - [x] make layers with thumbnails
 - [x] convert draw select to sidebar icons
 - [x] add select to points level
-- [ ] add line smoothing on construction lines
 - [ ] brainstorm connections interface
 - [ ] have move points on when drawing on outline and orientation lines
 - [ ] some graphical indicator of orientation lines direction clicking
@@ -27,6 +26,6 @@
 ## todo big
 - [ ] make a global file system
 - [x] enable a history stack
-- [ ] make the point system consistent across the assembler and the drawing 
+- [x] make the point system consistent across the assembler and the drawing 
 - [x] refactor in general
 - [ ] line smoothing function to reduce lag time + allow control point moving => change the point type to include control points

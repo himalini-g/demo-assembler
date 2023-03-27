@@ -1,12 +1,3 @@
-var recLim = 20;
-var debugView = true;
-
-const attachments = {
-  'LIMB': ['MOUTH', 'LIMB'],
-  'MOUTH': ['LIMB', 'MOUTH'],
-};
-
-
 function draw(renderStack){
     var polyLines = [];
     for(var l = 0; l< renderStack.length; l++){
@@ -26,13 +17,13 @@ class Assemblage{
 
   }
   deepCopies(){
-    return this.referenceDrawingJsons.map(json => new Drawing(json));
+    return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
   }
   shuffledDrawingIndexes(){
     return shuffleArray(this.referenceDrawingJsons.map((_, index)=>index));
   }
   shuffledDeepCopies(){
-    var drawings = this.referenceDrawingJsons.map(json => new Drawing(json));
+    var drawings = this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
     return shuffleArray(drawings);
   }
   addDrawingToAssemblage(drawing){
@@ -47,25 +38,23 @@ class Assemblage{
   }
   randomDrawing(){
     var randomReferenceJson = this.referenceDrawingJsons[randomInteger(0, this.referenceDrawingJsons.length)];
-    return new Drawing(randomReferenceJson);
+    return new Drawing(randomReferenceJson, this.attachments);
   }
   fitToCanvas(){
     var newLineList = this.renderStack.map(drawing => drawing.lines).flat(2);
-    var bBox = get_bbox_assembler(newLineList);
-    var scalingFactor = Math.min(width / bBox.w, height / bBox.h);
+    var bBox = get_bbox(newLineList);
+    var scalingFactor = Math.min(width / (bBox[1].x - bBox[0].x), height / (bBox[1].y - bBox[0].y));
     for(var l = 0; l< this.renderStack.length; l++){
       var processingLamba = function (line) {
-        return linePostProcessing(line, bBox.x, bBox.y, scalingFactor);
+        return linePostProcessing(line, bBox[0].x, bBox[0].y, scalingFactor);
       };
       this.renderStack[l].applyLambdaToLines(processingLamba);
     }
   
   }
 }
-function arrayToObjPoint(line){
-  return line.map(point => {return {x: point[0], y: point[1]}})
-}
-function makeStack(drawingJSONs) {
+
+function makeStack(drawingJSONs, recLim, attachments) {
   let assemblage = new Assemblage(drawingJSONs, recLim, attachments);
   //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
   let drawingObj = assemblage.randomDrawing();
@@ -94,7 +83,7 @@ function makeStack(drawingJSONs) {
           drawing.finewDrawing(newDrawing, i, newPoint);
           var polygonList = assemblage.getPolygonBorders();
           var b = polygonList.some(polygon => {
-            var inside = intersect(arrayToObjPoint(newDrawing.polygonBorder), arrayToObjPoint(polygon));
+            var inside = intersect(newDrawing.polygonBorder, polygon);
             return inside.length != 0;
           })
           if(!b){
@@ -119,13 +108,14 @@ function makeStack(drawingJSONs) {
 
 
 class Drawing {
-  constructor (object){
+  constructor (object, attachments){
     this.lines = JSON.parse(JSON.stringify(object.getLayerAssembler("construction")));
     this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("outline")));
     this.polygonBorder = this.polygonBorder.flat(1);
     this.polygonBorder.push(this.polygonBorder[0]);
     this.orient = JSON.parse(JSON.stringify(object.getLayerAssembler("orient")));
     this.orientLines = [];
+    this.attachments = attachments;
 
     for(var i = 0; i< this.orient.length; i++){
         var orientLine = {
@@ -133,7 +123,7 @@ class Drawing {
           vector: this.orient[i].slice(2),
           attachedDrawing: false,
           //TODO: fix,
-          label: Object.keys(attachments)[0],
+          label: Object.keys(this.attachments)[0],
           index: i,
         }
         this.orientLines.push(orientLine)
@@ -175,16 +165,16 @@ class Drawing {
     var start = newDrawing.orientLines[newDrawingIndex];
     const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
     const dotProduct = (v1, v2) =>{
-      const x1 = v1[1][0] - v1[0][0];
-      const x2 = v2[1][0] - v2[0][0];
-      const y1 = v1[1][1] - v1[0][1];
-      const y2 = v2[1][1] - v2[0][1];
+      const x1 = v1[1].x - v1[0].x;
+      const x2 = v2[1].x - v2[0].x;
+      const y1 = v1[1].y - v1[0].y;
+      const y2 = v2[1].y - v2[0].y;
 
       return x1 * x2 + y1 * y2
     }
     const magnitude = (v) => {
-      const y = v[1][1] - v[0][1];
-      const x = v[1][0] - v[0][0];
+      const y = v[1].y - v[0].y;
+      const x = v[1].x - v[0].x;
       return Math.sqrt((y * y) + (x * x))
     }
 
@@ -194,7 +184,7 @@ class Drawing {
     const numerator = dotProduct(target.vector,start.vector );
     const denom = magnitude(target.vector) * magnitude(start.vector);
     const cosTheta = clamp(numerator / denom, -1.0, 1.0);
-    
+
     const targetOrientMag = magnitude(target.opening);
     const startOrientMag = magnitude(start.opening);
     // start size * (target size/ start size) = target size
@@ -212,13 +202,13 @@ class Drawing {
       [Math.sin(rotationAngle), Math.cos(rotationAngle)]
     ]
     const newDrawingToOriginLambda = (line) => {
-      return translateLine(line, start.vector[0][0], start.vector[0][1])
+      return translateLine(line, start.vector[0].x, start.vector[0].y)
     }
     const newDrawingRotated = line => {
       return rotateLine(line, rotationMatrix)
     }
     const newDrawingToTarget = line => {
-      return translateLine(line, target.vector[0][0] * -1, target.vector[0][1] * -1)
+      return translateLine(line, target.vector[0].x * -1, target.vector[0].y * -1)
     }
 
     newDrawing.applyLambdaToLines(newDrawingToOriginLambda);
@@ -228,9 +218,6 @@ class Drawing {
     newDrawing.applyLambdaToLines(newDrawingToTarget);
     return;
 
-  }
-  arrayDist(arr){
-    return dist(arr[0][0], arr[0][1], arr[1][0], arr[1][1])
   }
 }
 /// ********** utils
@@ -246,34 +233,25 @@ function linePostProcessing(line, x, y, scalingFactor){
 
 }
 
-function translateRotateTranslate(l, v1, rotationMatrix, v2){
-  var newLine  = translateLine(
-    rotateLine(
-    translateLine(l, v1[0][0], v1[1][1]), rotationMatrix), v2[0][0] * -1.0, v2[0][1] * -1.0)
-  return newLine
-}
 
 // rotates point (x, y) by 2d rotation matrix rotationMatrix
 function rotateLine(line, rotationMatrix){
-  return line.map(p => rPwM(rotationMatrix, p[0], p[1]))
+  return line.map(p => rPwM(rotationMatrix, p.x, p.y))
 }
 function rPwM(rotationMatrix, x, y){
   var a = rotationMatrix[0][0]; //0
   var b = rotationMatrix[0][1]; //-1
   var c = rotationMatrix[1][0]; //1
   var d = rotationMatrix[1][1]; //0
-  return [a *x + b *y, c*x + d*y];
+  return {x: a *x + b *y, y: c*x + d*y};
 
 }
 
 //https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
 
 
-function draw_svg(element, polylines, width, height, id){
-  var linesXY = polylines.map(line => line.map(point => {
-    return {x: point[0], y: point[1]}
-  }))
-  var lineObjs = linesXY.map((line, index) => {
+function draw_svg(element, polylines){
+  var lineObjs = polylines.map((line, index) => {
     var lineObj = new Line("assembler_" + index.toString())
     lineObj.points = line;
     lineObj.reRender();
@@ -284,16 +262,6 @@ function draw_svg(element, polylines, width, height, id){
 
   return;
 }
-function saveSVG(svgData){
-  var svgBlob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
-  var svgUrl = URL.createObjectURL(svgBlob);
-  var downloadLink = document.createElement("a");
-  downloadLink.href = svgUrl;
-  downloadLink.download = "newesttree.svg";
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  document.body.removeChild(downloadLink);
-}
 
 function renderDebug(renderStack){
   var container = document.getElementById("assembler-svg-container");
@@ -301,16 +269,21 @@ function renderDebug(renderStack){
   var element = SVGElement(width, height, width, height, "svg", id);
   container.appendChild(element);
   var polyLines = draw(renderStack);
-  draw_svg(element, polyLines, width, height, id);
+  draw_svg(element, polyLines);
 }
 
 var id = "assembler-svg"
 function assemblerSetup(drawings){
+  const attachments = {
+    'LIMB': ['MOUTH', 'LIMB'],
+    'MOUTH': ['LIMB', 'MOUTH'],
+  };
+  var recLim = 20;
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", id);
   container.appendChild(element);
-  var toRender = makeStack(drawings);
+  var toRender = makeStack(drawings, recLim, attachments);
 
   var polyLines = draw(toRender);
   draw_svg(element, polyLines, width, height, id);

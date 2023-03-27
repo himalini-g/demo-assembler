@@ -87,7 +87,7 @@ class Svg {
  
     getLayerAssembler(layer){
         return Object.entries(this.layers[layer]).map(([_, line]) => {
-            return line.getPointsArray();
+            return line.points;
         })
     }
     getLine(lineID){
