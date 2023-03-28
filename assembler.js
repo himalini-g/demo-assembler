@@ -257,8 +257,7 @@ function draw_svg(element, polylines){
     lineObj.reRender();
     return lineObj
   });
-  lineObjs.forEach(line => element.appendChild(line.path));
-  
+  lineObjs.forEach(line => line.addToParentElement(element, "assembler"));
 
   return;
 }

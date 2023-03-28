@@ -93,11 +93,12 @@ class SelectPoints{
         }
         points.forEach((point, index) => {
             var circleElement = new Circle(point, index, this.tolerance);
+            circleElement.addToParentElement(this.svg.element);
             this.circleDict[circleElement.id] = {
                 circle: circleElement,
                 index: index
             };
-            this.svg.tempElems.push(circleElement.circle);
+            this.svg.tempElems.push(circleElement);
         });
         this.svg.reRender();
     }
@@ -127,7 +128,6 @@ class Select{
         this.selectionBox.setAttribute('stroke','gray')
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
-        this.svg.tempElems.push(this.selectionBox);
         this.svg.element.appendChild(this.selectionBox);
         this.selected = [];
         
@@ -162,11 +162,10 @@ class Select{
         this.clickedInSelection = false;
         this.resetSelectionBox();
         var closestLine = svg.getClosestLine(e);
-        var closestLineID = closestLine.lineID;
         this.resetSelection();
         this.selectingPoints = true;
-        this.selected = [closestLineID];
-        this.selectpoints.initSelection(closestLineID);
+        this.selected = [closestLine.line];
+        this.selectpoints.initSelection(closestLine.line.id);
         
     }
     mouseDownHandler(e){
@@ -183,6 +182,7 @@ class Select{
         } else {
              // click is in the selected boxes
             if(this.isSelected() && this.clickInSelected(e)){
+                console.log("hekk")
                 this.clickedInSelection = true;
                 this.startSelection(e);
             // click is outside the selection, therefore start new selection
@@ -201,7 +201,6 @@ class Select{
                 this.updateMoveVec(e);
                 this.svg.moveLines(this.selected, this.moveVec);
                 this.svg.reRender();
-                this.svg.tempElems.push(this.selectionBox);
             } else {
                 this.updateSelectionBox(e);
                 this.setSelectionBox();
@@ -216,12 +215,7 @@ class Select{
     }
     setSelectedLines(){
         this.selected = this.svg.getLinesInRect([this.selectionLeftTopCorner, this.selectionBottomRightCorner ]);
- 
-        this.removeCSS();
-        for(var i = 0; i < this.selected.length; i++){
-            var lineElement = document.getElementById(this.selected[i]);
-            lineElement.classList.add(this.selectionCss);
-        }
+        this.selected.forEach(line => line.addCSS(this.selectionCss));
     }
     clickInSelected(e){
         //click point criteria
@@ -232,8 +226,8 @@ class Select{
         }
         
         var point = svg.relativeMousePosition(e);
-        var potentialIDs = svg.getLinesInPoint(point);
-        const found = potentialIDs.some(r=> this.selected.includes(r))
+        var potentialSelected = svg.getLinesInPoint(point);
+        const found = potentialSelected.some( line => this.selected.includes(line))
         return found;
     }
     startSelection(e){
@@ -279,11 +273,8 @@ class Select{
 
     }
     removeCSS(){
-        var allIDs = svg.getAllIDs();
-        for(var i = 0; i < allIDs.length; i++){
-            var lineElement = document.getElementById(allIDs[i]);
-            lineElement.classList.remove(this.selectionCss);
-        }
+        var lines = this.svg.getLayer(this.svg.layerSelected);
+        lines.forEach(line => line.removeCSS(this.selectionCss));
     }
     resetSelection(){
         this.removeCSS();
@@ -306,7 +297,7 @@ class Select{
         this.setSelectionBox();
     }
     deleteSelected(){
-        this.svg.deleteIDs(this.selected);
+        this.svg.deleteIDs(this.selected.map(line => line.id));
         this.resetSelection();
     }
 }

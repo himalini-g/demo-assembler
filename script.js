@@ -3,6 +3,7 @@ class Svg {
     constructor(element, activeLayer, layerInfo) {
         this.name = "svg"
         this.uniqueID = 1;
+        this.renderelems = [];
         this.element = element;
         this.tempElems = [];
         this.layerSelected = activeLayer;
@@ -44,10 +45,10 @@ class Svg {
         } else{
             relativePoint = this.relativeMousePosition(point);
         }
-        var textELement = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
-        this.element.appendChild(textELement.text);
-        this.text[textELement.id] = textELement;
-        return textELement.id;
+        var textObj = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
+        textObj.addToParentElement(this.element, this.name);
+        this.text[textObj.id] = textObj;
+        return textObj.id;
     }
     addLine(point, pointIsRelative=false, closed=false){
         var color = this.layerColors[this.layerSelected];
@@ -60,28 +61,21 @@ class Svg {
         }
         
         line.appendPoint(relativePoint);
-        this.element.appendChild(line.path);
+        line.addToParentElement(this.element, this.name);
         this.layers[this.layerSelected][line.id] = line;
-  
         return line.id;
     }
-    getAllIDs(){
-        var allIDs = Object.keys(this.layers[this.layerSelected]).map(lineID => lineID);
-        return allIDs;
-    }
+ 
     reRender(){
-        this.element.innerHTML = ""
         Object.entries(this.layers).forEach(([_, layer]) => {
             Object.entries(layer).forEach(([_, line]) =>{
-                this.element.appendChild(line.path);
                 line.reRender();
             });
         });
         this.tempElems.forEach(elem =>{
-            this.element.appendChild(elem);
+            elem.reRender();
         });
         Object.entries(this.text).forEach(([_, elem])=> {
-            this.element.appendChild(elem.text);
             elem.reRender();
         })
     }
@@ -114,34 +108,35 @@ class Svg {
         return lineID;
     }
     clearTemp(){
+        this.tempElems.forEach(elem => elem.destroy());
         this.tempElems = [];
     }
 
-    moveLines(lineIDs, vec){
-        lineIDs.map(id => this.layers[this.layerSelected][id].moveByVector(vec));
-        lineIDs.forEach(id  => {
-            if(this.genTextID(id) in this.text){
+    moveLines(lines, vec){
+        lines.map(line => line.moveByVector(vec));
+        lines.forEach(line  => {
+            if(this.genTextID(line.id) in this.text){
                 this.text[this.genTextID(id)].moveByVector(vec);
             }
         })
     }
     getLinesInPoint(point){
-        var selectedIDs = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine]) => {
+        var selected = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine]) => {
             if(curLine.pointInRect(point)){
-                acc.push(curLine.id)
+                acc.push(curLine)
             }
             return acc;
         }, []);
-        return selectedIDs;
+        return selected;
     }
     getLinesInRect(rect){
-        var selectedIDs = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
+        var selected = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
             if(curLine.inRect(rect)){
-                acc.push(curLine.id)
+                acc.push(curLine)
             }
             return acc;
         }, []);
-        return selectedIDs;
+        return selected;
     }
     getClosestLine(point){
         var relativePoint = this.relativeMousePosition(point);
@@ -149,10 +144,10 @@ class Svg {
             var distance = minDistanceToLine(relativePoint, curLine.points);
             if( distance < acc.distance ){
                 acc.distance = distance;
-                acc.lineID = curLine.id;
+                acc.line = curLine;
             }
             return acc;
-        }, {distance: Infinity, lineID: null});
+        }, {distance: Infinity, line: null});
         return closestLine;
     }
     generatePerp(lineID, point){
@@ -210,9 +205,12 @@ class Svg {
     deleteIDs(IDs){
         IDs.forEach(id =>{
             if(this.genTextID(id) in this.text){
+                this.text[this.genTextID(id)].destroy();
                 delete this.text[this.genTextID(id)];
             }
             if(id in this.layers[this.layerSelected]){
+                this.layers[this.layerSelected][id].destroy();
+                console.log("hello");
                 delete this.layers[this.layerSelected][id];
             }
         });
@@ -300,7 +298,7 @@ function downloadSVG(element=null, fileName=null){
         element = svg.element;
         fileName = svg.name;
     }
-    console.log(element);
+
     var preface = '<?xml version="1.0" standalone="no"?>\r\n';
     var svgBlob = new Blob([preface, element.outerHTML], {type:"image/svg+xml;charset=utf-8"});
     var downloadLink = document.createElement("a");
@@ -437,9 +435,9 @@ function setup(passedSVG=null){
         svg.reRender();
     }
     selectpointsmode = new SelectPoints(svg);
-    var orientlinemode = new OrientLineMode(svg, selectpointsmode);
+    var orientlinemode = new OrientLineMode(svg, selectpointsmode, svgElement);
     selectpointsmode.orientlinemode = orientlinemode;
-    select = new Select(svg, selectpointsmode);
+    select = new Select(svg, selectpointsmode, svgElement);
     layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
     var outlinemode = new OutlineMode(svg, selectpointsmode);
     var constructionmode = new ConstructionMode(svg);
@@ -596,15 +594,10 @@ class SvgUI{
     }
   
     reRenderLayer(layerName){
-        var lineElems = this.svg.getLayer(layerName);
+        var lines = this.svg.getLayer(layerName);
         var thumbnailElement = this.layerElements[this.svg.layerSelected]
-        thumbnailElement.innerHTML = "";
-        lineElems.forEach(line => {
-            var path =  document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            thumbnailElement.appendChild(path);
-            path.outerHTML = line.path.outerHTML;
-            path.id = line.id + "_layer_thumbnail"
-            return path;
+        lines.forEach(line => {
+            line.addToParentElement(thumbnailElement, "layer_thumbnail");
         });
     }
 }
@@ -693,7 +686,6 @@ class Thumbnails{
     }
     downloadDrawingLambda(svg){
         const downloadDrawing = (e) => {
-            console.log(svg)
             downloadSVG(svg.element, svg.name);
         }
         return downloadDrawing;

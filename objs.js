@@ -1,4 +1,3 @@
-
 class Circle {
     constructor(point, ID, radius=3, fill="#0000ff", stroke="#0000c8"){
         this.fill = fill;
@@ -6,15 +5,26 @@ class Circle {
         this.point = point;
         this.radius = radius;
         this.id = "circle_" + ID.toString();
-        this.circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        this.circle.setAttribute("fill", this.fill);
-        this.circle.setAttribute("stroke", this.stroke);
-        this.circle.setAttribute("cy", this.point.y);
-        this.circle.setAttribute("cx", this.point.x);
-        this.circle.setAttribute("r", this.radius);
-        this.circle.setAttribute("stroke-width", this.radius / 2);
-        this.circle.setAttribute("class", "circle");
-        this.circle.setAttribute("id", this.id);
+        this.elements = {};
+    }
+    addToParentElement(parent, parentName){
+        if(parentName in this.elements){
+            return;
+        }
+        var newCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        newCircle.setAttribute("fill", this.fill);
+        newCircle.setAttribute("stroke", this.stroke);
+        newCircle.setAttribute("cy", this.point.y);
+        newCircle.setAttribute("cx", this.point.x);
+        newCircle.setAttribute("r", this.radius);
+        newCircle.setAttribute("stroke-width", this.radius / 2);
+        newCircle.setAttribute("class", "circle");
+        newCircle.setAttribute("id", this.id);
+        newCircle.classList.add(this.id);
+     
+        parent.appendChild(newCircle);
+        this.elements[parentName] = newCircle;
+        this.reRender();
     }
     moveByVector(vec){
         this.point = {
@@ -23,8 +33,14 @@ class Circle {
         }
     }
     reRender(){
-        this.circle.setAttribute("cy", this.point.y);
-        this.circle.setAttribute("cx", this.point.x);
+        Object.entries(this.elements).forEach(([_, circle]) => {
+            circle.setAttribute("cy", this.point.y);
+            circle.setAttribute("cx", this.point.x);
+        })
+        
+    }
+    destroy(){
+        Object.entries(this.elements).forEach(([_, circle]) => circle.outerHTML = "");
     }
 }
 class TextSVG {
@@ -32,13 +48,25 @@ class TextSVG {
         this.fill = fill;
         this.point = point;
         this.id = ID;
+        this.elements = [];
         this.txt = txt;
-        this.text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        this.text.setAttribute("fill", this.fill);
-        this.text.setAttribute("y", this.point.y);
-        this.text.setAttribute("x", this.point.x);
-        this.text.setAttribute("id", this.id);
-        this.text.textContent  = this.txt;
+    }
+    addToParentElement(parent, parentName){
+        if(parentName in this.elements){
+            return;
+        }
+        var newText =  document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        newText.setAttribute("fill", this.fill);
+        newText.setAttribute("y", this.point.y);
+        newText.setAttribute("x", this.point.x);
+        newText.setAttribute("id", this.id);
+        newText.textContent  = this.txt;
+        newText.classList.add(this.id);
+     
+        parent.appendChild(newText);
+        this.elements[parentName] = newText;
+        this.reRender();
+
     }
     moveByVector(vec){
         this.point = {
@@ -47,21 +75,22 @@ class TextSVG {
         }
     }
     reRender(){
-        this.text.setAttribute("y", this.point.y);
-        this.text.setAttribute("x", this.point.x);
-        this.text.textContent  = this.txt;
+        Object.entries(this.elements).forEach(([parentName, element]) => {
+            element.setAttribute("y", this.point.y);
+            element.setAttribute("x", this.point.x);
+            element.textContent  = this.txt;
+         
+        });
+       
     }
     fromJSON(json){
         this.fill = json.fill;
         this.point =json.point;
         this.id = json.id;
         this.txt = json.txt;
-        this.text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        this.text.setAttribute("fill", this.fill);
-        this.text.setAttribute("y", this.point.y);
-        this.text.setAttribute("x", this.point.x);
-        this.text.setAttribute("id", this.id);
-        this.text.textContent  = this.txt;
+    }
+    destroy(){
+        Object.entries(this.elements).forEach(([_, element]) => element.outerHTML = "");
     }
 }
 
@@ -71,14 +100,27 @@ class Line {
         this.strokeWidth = 2;
         this.stroke = stroke;
         this.points = [];
+        this.elements = {};
         this.id = "stroke_" + ID.toString();
-        this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        this.path.setAttribute("fill", this.fill);
-        this.path.setAttribute("stroke", this.stroke);
-        this.path.setAttribute("stroke-width",this.strokeWidth);
-        this.path.setAttribute("id", this.id);
+
         this.lineClosed = lineClosed;
         this.closePoint = null;
+      
+    }
+    addToParentElement(parent, parentName){
+        if(parentName in this.elements){
+            return;
+        }
+        var newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        newPath.setAttribute("fill", this.fill);
+        newPath.setAttribute("stroke", this.stroke);
+        newPath.setAttribute("stroke-width",this.strokeWidth);
+        newPath.classList.add(this.id);
+     
+        parent.appendChild(newPath);
+        this.elements[parentName] = newPath;
+        this.reRender();
+
     }
     jsonToObj(json){
         this.fill = json.fill;
@@ -86,13 +128,10 @@ class Line {
         this.stroke = json.stroke;
         this.points = json.points;
         this.id = json.id;
-        this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        this.path.setAttribute("fill", this.fill);
-        this.path.setAttribute("stroke", this.stroke);
-        this.path.setAttribute("stroke-width",this.strokeWidth);
-        this.path.setAttribute("id", this.id);
+        this.elements = {};
         this.lineClosed = json.lineClosed;
         this.closePoint = json.lineClosed && this.points.length > 0 ? this.points[0] : null;
+       
     }
     movePoint(index, vec){
         var point = this.points[index];
@@ -137,7 +176,7 @@ class Line {
         if(this.lineClosed){
             this.closePoint = this.points[0];
         }
-        this.path.setAttribute("d", this.toString());
+        this.reRender();
     }
     pointInRect(point){
         var lineRect = get_bbox(this.points);
@@ -165,7 +204,15 @@ class Line {
         return true;
     }
     reRender(){
-        this.path.setAttribute("d", this.toString());
+        Object.entries(this.elements).forEach(([parentName, path]) => {
+            path.setAttribute("d",  this.toString());
+         
+        });
+ 
+        
+    }
+    destroy(){
+        Object.entries(this.elements).forEach(([_, path]) => path.outerHTML = "");
     }
     moveByVector(vec){
         this.points = this.points.map(point => {
@@ -190,6 +237,12 @@ class Line {
             svgString += " L" + this.closePoint.x + " " + this.closePoint.y;
         }
         return svgString;
+    }
+    removeCSS(CSSClass){
+        Object.entries(this.elements).forEach(([_, path]) =>  path.classList.remove(CSSClass));
+    }
+    addCSS(CSSClass){
+        Object.entries(this.elements).forEach(([_, path]) => path.classList.add(CSSClass));
     }
 }
 
