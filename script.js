@@ -9,7 +9,8 @@ class Svg {
         this.layers = {};
         this.text = {};
         this.layerColors = {};
-        layerInfo.forEach(layer => {
+        this.layerInfo = layerInfo;
+        this.layerInfo.forEach(layer => {
             this.layers[layer.name] = {};
             this.layerColors[layer.name] = layer.color;
         });
@@ -222,37 +223,94 @@ class Svg {
         }
         return false;
     }
-    downloadSVG(){
-        var preface = '<?xml version="1.0" standalone="no"?>\r\n';
-        var svgBlob = new Blob([preface, this.element.outerHTML], {type:"image/svg+xml;charset=utf-8"});
-        var downloadLink = document.createElement("a");
-        downloadLink.href = URL.createObjectURL(svgBlob);
-        downloadLink.download = this.name;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-    } 
+   
+    fromJSON(jsonObj){
+        this.name = jsonObj.name
+        this.uniqueID = jsonObj.uniqueID 
+        this.tempElems = [];
+        this.layers = {};
+        this.text = {};
+        this.layerInfo = jsonObj.layerInfo;
+        this.layerInfo.forEach(layer => {
+            this.layers[layer.name] = {};
+            this.layerColors[layer.name] = layer.color;
+        });
+        Object.entries(jsonObj.layers).forEach(([layerKey, layerJSON]) => {
+            Object.entries(layerJSON).forEach(([lineID, lineJSON]) =>{
+                var line = new Line("");
+                line.jsonToObj(lineJSON);
+                this.layers[layerKey][lineID] = line;
+                this.element.appendChild(line.path);
+            });
+        });
+        Object.entries(jsonObj.text).forEach(([textID, textJSON]) =>{
+            var text = new TextSVG(textJSON.point, "", textJSON.text);
+            this.text[textID] = text;
+            text.fromJSON(textJSON);
+            this.element.appendChild(text.text);
+        })
+    }
+    
 }
 
 class OutlineMode{
-    constructor(svg){
+    constructor(svg, selectpoints){
         this.outlineID = null;
         this.svg = svg;
+        this.selectpoints = selectpoints;
+        this.selectingPoints = false;
 
     }
     mouseDownHandler(e){
+        this.selectingPoints = this.selectpoints.clickInPoint(e);
+        if(this.selectingPoints){
+            this.selectpoints.mouseDownHandler(e);
+            return;
+        }
+
         if(!this.svg.checkMembership(this.outlineID)){
             this.outlineID = this.svg.addLine(e, false, true);
+            this.selectpoints.reset();
+            this.selectpoints.initSelection( this.outlineID);
         }
         this.svg.updateSvgPath(e, this.outlineID);
     }
     mouseMoveHandler(e){
+        if(this.selectingPoints){
+            this.selectpoints.mouseMoveHandler(e);
+            return;
+        }
+        
         this.svg.getLine(this.outlineID).removePoint();
         this.svg.updateSvgPath(e, this.outlineID);
+       
     }
     mouseUpHandler(){
+        if(this.selectingPoints){
+            this.selectpoints.mouseUpHandler();
+            return;
+        }
+        if(this.svg.checkMembership(this.outlineID)){
+            this.selectpoints.initSelection(this.outlineID);
+        }
     }
 }
+function downloadSVG(element=null, fileName=null){
+    if(element == null){
+        element = svg.element;
+        fileName = svg.name;
+    }
+    console.log(element);
+    var preface = '<?xml version="1.0" standalone="no"?>\r\n';
+    var svgBlob = new Blob([preface, element.outerHTML], {type:"image/svg+xml;charset=utf-8"});
+    var downloadLink = document.createElement("a");
+    downloadLink.href = URL.createObjectURL(svgBlob);
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+} 
+
 
 class ConstructionMode{
     constructor(svg){
@@ -271,13 +329,18 @@ class ConstructionMode{
 }
 
 class OrientLineMode{
-    constructor(svg){
+    constructor(svg, selectpoints){
         this.svg = svg;
-        this.baseLength = null;
+     
         this.baseID = null;
         this.orientDict = {};
+        this.selectpoints = selectpoints;
+        this.selectingPoints = false;
     }
     reComp(lineID){
+        if(!(lineID in this.orientDict)){
+            return;
+        }
         const pickDir = this.orientDict[lineID];
         pickDir.computeNormals(this.svg.getLine(lineID).points);
         var [average, normal, length] = pickDir.retrieveAverageNormalLength();
@@ -293,18 +356,28 @@ class OrientLineMode{
         this.svg.updateSvgPath(normal, lineID, true);
     }
     mouseDownHandler(e){
+        // weird line edge cases
         if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
             this.baseID = null;
-            this.baseLength = null;
             delete this.orientDict[this.baseID];
         }
+        this.selectingPoints = this.selectpoints.clickInPoint(e);
+       
+        if(this.selectingPoints){
+            this.selectpoints.mouseDownHandler(e);
+            return;
+        }
+
         if(this.baseID == null){
+            this.selectpoints.reset();
             this.baseID = this.svg.addLine(e);
             this.svg.updateSvgPath(e, this.baseID);
+            this.selectpoints.initSelection( this.baseID);
         }
-        else if(this.baseID != null && this.baseLength <= 1){
+        else if(this.baseID != null && this.svg.getLine(this.baseID).points.length <= 1){
             this.svg.updateSvgPath(e, this.baseID);
-        }
+    
+        } 
         else{
             const pickDir = this.svg.generatePerp(this.baseID, e);
             this.orientDict[this.baseID] = pickDir;
@@ -313,15 +386,19 @@ class OrientLineMode{
             this.svg.updateSvgPath(normal, this.baseID, true);
             this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
             this.baseID = null;
-            this.baseLength = null;
         }
        
     }
     mouseMoveHandler(e){
+ 
         if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
             this.baseID = null;
-            this.baseLength = null;
+       
             delete this.orientDict[this.baseID];
+        }
+        if(this.selectingPoints){
+            this.selectpoints.mouseMoveHandler(e);
+            return;
         }
         if(this.baseID != null){
             this.svg.getLine(this.baseID).removePoint();
@@ -329,13 +406,16 @@ class OrientLineMode{
         }
     }
     mouseUpHandler(){
+        if(this.selectingPoints){
+            this.selectpoints.mouseUpHandler();
+            return;
+        }
         if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
             this.baseID = null;
-            this.baseLength = null;
             delete this.orientDict[this.baseID];
         }
-        if(this.baseID != null){
-            this.baseLength = this.svg.getLine(this.baseID).points.length;
+        if(this.baseID != null ){
+            this.selectpoints.initSelection(this.baseID);
         }
     }
 }
@@ -350,32 +430,18 @@ function setup(passedSVG=null){
     svgElement = document.getElementById(svgID);
     mode = document.getElementById("mode");
 
-    const layerInfo = 
-    [
-        {
-            name: outlineLayer,
-            color: "#FF0000",
-        },
-        {
-            name: orientLayer,
-            color: "#00FF00",
-        },
-        {
-            name: constructionLayer,
-            color: "#000000",
-        }
-    ]
-    svg = new Svg(svgElement,LAYERSELECTED, layerInfo);
+    svg = new Svg(svgElement, LAYERSELECTED, layerInfo);
     if(passedSVG != null){
         svg = passedSVG;
         svg.element = svgElement;
         svg.reRender();
     }
-    var orientlinemode = new OrientLineMode(svg);
-    select = new Select(svg, new SelectPoints(svg, orientlinemode));
+    selectpointsmode = new SelectPoints(svg);
+    var orientlinemode = new OrientLineMode(svg, selectpointsmode);
+    selectpointsmode.orientlinemode = orientlinemode;
+    select = new Select(svg, selectpointsmode);
     layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
-    historystack = new HistoryStack(select, svg);
-    var outlinemode = new OutlineMode(svg);
+    var outlinemode = new OutlineMode(svg, selectpointsmode);
     var constructionmode = new ConstructionMode(svg);
     var eventMap = {};
 
@@ -405,7 +471,7 @@ function setup(passedSVG=null){
         pressed = false;
         eventMap[SETMODE][LAYERSELECTED].mouseUpHandler();
         layerthumbnails.reRenderLayer(svg.layerSelected);
-        historystack.addToHistoryStack(svg.layers[svg.layerSelected]);
+  
     });
     svgElement.addEventListener("dblclick", function (e) {
         if(SETMODE == selectMode){
@@ -415,32 +481,21 @@ function setup(passedSVG=null){
     });
     $(document).keyup(function(e){
         if(e.key === "Backspace") {
-            if(select.selected.length > 0){
-                historystack.addToHistoryStack(svg.layers[svg.layerSelected])
-            }
-            select.deleteSelected()
-        }
-    });
-    document.addEventListener('keydown', function(event) {
-        
-        if (event.metaKey && event.shiftKey && event.key === 'z') {
-            historystack.redoCMD();
-        } else if (event.metaKey && event.key === 'z') {
-            historystack.undoCMD();
+            select.deleteSelected();
         }
     });
 }
 
 function rerenderAssemblage(){
-    assemblerSetup(thumbnailsobj.export());
+    assemblerElement = assemblerSetup(thumbnailsobj.export());
 }
 
-function downloadSVG(){
-    svg.downloadSVG();
-}
+
 function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeight=75,  htmlClass="svg", id){
     var xmlns = "http://www.w3.org/2000/svg";
     var svgElem = document.createElementNS(xmlns, "svg");
+    svgElem.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svgElem.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
     svgElem.setAttributeNS(null, "viewBox", "0 0 " + boxWidth + " " + boxHeight);
     svgElem.setAttributeNS(null, "width", viewBoxWidth);
     svgElem.setAttributeNS(null, "height", viewBoxHeight);
@@ -546,76 +601,18 @@ class SvgUI{
         thumbnailElement.innerHTML = "";
         lineElems.forEach(line => {
             var path =  document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            thumbnailElement.appendChild(path)
+            thumbnailElement.appendChild(path);
             path.outerHTML = line.path.outerHTML;
             path.id = line.id + "_layer_thumbnail"
             return path;
         });
     }
 }
-class HistoryStack{
-    constructor(select, svg){
-        this.svg = svg
-        this.select = [];
-        this.undo = [];
-        this.redo = [];
-    }
-    addToHistoryStack(layerContent){
-        var state = JSON.stringify(layerContent);
-        if(this.undo.length > 0){
-            var lastState =  this.undo[this.undo.length - 1].state;
-            if(lastState == state){
-                return;
-            }
-        }
-        this.undo.push(
-            {
-                layer: this.svg.layerSelected,
-                state: state,
-                layerSize: Object.entries(layerContent).length
-            }
-        );
-        this.redo = [];
-    }
-    popFromStack(stateObj){
-        var state = JSON.parse(stateObj.state);
-        for (let key in state) {
-            state[key] = this.remakeLine(state[key])
-            // do something for each key in the object 
-        }
-        console.log(state);
-        this.svg.clearLayer(stateObj.layer);
-        Object.entries(state).forEach(([key, line]) => {
-            this.svg.layers[stateObj.layer][key] = line;
-            this.svg.element.appendChild(line.path);
-        })
-        this.svg.reRender();
-    }
-    undoCMD(){
-        if(this.undo.length > 0){
-            var lastCMD = this.undo.pop();
-            this.popFromStack(lastCMD)
-            this.redo.push(lastCMD);
 
-        }
-        
 
-    }
-    redoCMD(){
-        if(this.redo.length > 0){
-            var lastCMD = this.redo.pop();
-            this.popFromStack(lastCMD);
-            this.undo.push(lastCMD);
-        }
-    }
-    remakeLine(lineString){
-        var line= new Line("");
-        line.jsonToObj(lineString);
-        return line;
-    }
-}
+
 class Thumbnails{
-    constructor(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDiv, trashIcon, saveIcon, resetLambda ){
+    constructor(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDiv, trashIcon, saveIcon, editIcon, resetLambda,  sessionStorageKey){
         this.thumbnailDivID = thumbnailDiv;
         this.thumbnails = {};
         this.numberID = 0;
@@ -626,9 +623,28 @@ class Thumbnails{
         this.thumbnailDivClass = thumbnailDivClass;
         this.trashicon = trashIcon;
         this.saveicon = saveIcon;
+        this.editicon = editIcon;
         this.thumbnailDivs = {};
+        this.sessionStorageKey = sessionStorageKey;
         this.resetLambda = resetLambda;
-        
+        this.downloadProjectButton =  makeButton("project save");
+        this.downloadProjectButton.onclick = this.downloadProjectLambda(); 
+        // sessionStorage.removeItem(this.sessionStorageKey);
+        if(sessionStorage.getItem(this.sessionStorageKey)){
+            this.loadFromSessionStorage();
+        }
+         
+    }
+    loadFromSessionStorage(){
+        var project = JSON.parse(sessionStorage.getItem(this.sessionStorageKey));
+        Object.entries(project).forEach(([key, svgJSON], index) => {
+            var svgElement = SVGElement(width, height, width, height, "svg", index.toString());
+            var svgClass = new Svg(svgElement, LAYERSELECTED, layerInfo);
+            svgClass.fromJSON(svgJSON)
+            this.addThumbnail(svgClass);
+        })
+        this.render();
+
     }
     addThumbnail(svg){
         this.numberID += 1;
@@ -638,7 +654,7 @@ class Thumbnails{
         var deleteButton = makeButton(this.trashicon +  " delete");
         
         var saveButton = makeButton(this.saveicon +  " download");
-        var loadButton = makeButton(this.saveicon +  "edit");
+        var loadButton = makeButton(this.editicon +  "edit");
         thumbnailDIV.appendChild(thumbnailElemNS);
         thumbnailDIV.appendChild(deleteButton);
         thumbnailDIV.appendChild(saveButton);
@@ -677,7 +693,8 @@ class Thumbnails{
     }
     downloadDrawingLambda(svg){
         const downloadDrawing = (e) => {
-            svg.downloadSVG();
+            console.log(svg)
+            downloadSVG(svg.element, svg.name);
         }
         return downloadDrawing;
 
@@ -696,10 +713,26 @@ class Thumbnails{
         thumbnailDiv.innerHTML = "";
         Object.entries(this.thumbnailDivs).forEach(([_, elem]) => thumbnailDiv.appendChild(elem))
         Object.entries(this.thumbnails).forEach(([_, svg]) => svg.reRender());
+        thumbnailDiv.appendChild(this.downloadProjectButton);
     }
     export(){
         return Object.entries(this.thumbnails).map(([_, svg]) => svg);
     }
+    downloadProjectLambda(){
+        const downloadProject = () =>{
+            var exportName = "project_file"
+            //https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.thumbnails));
+            sessionStorage.setItem(this.sessionStorageKey, JSON.stringify(this.thumbnails));
+            var downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("download", exportName + ".json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+        return downloadProject
+      }
     
 }
 const width = 800;
@@ -717,6 +750,7 @@ const drawModeButtonID = "draw-button";
 const selectMode = "select";
 const selectModeButtonID = "select-button";
 
+
 var SETMODE = drawMode;
 const modeInfo = [
     {
@@ -729,22 +763,79 @@ const modeInfo = [
     },
 ]
 var pressed = false;
-const outlineLayer = "outline";
+const outlineLayer = "border";
 const orientLayer = "orient";
 const constructionLayer = "construction";
 var LAYERSELECTED = constructionLayer;
 const trashicon = `<i class="fa fa-trash" aria-hidden="true"></i>`
 const clearicon = `<i class="fa fa-times" aria-hidden="true"></i>`
 const savefileicon = ` <i class="fa fa-download" aria-hidden="true"></i> `
+const editicon = `<i class="fa fa-pencil" aria-hidden="true"></i> `
+const sessionStorageKey = "project"
 var svgElement = null;
 var svg = null;
 var select = null;
 var layerthumbnails = null;
-var historystack = null;
+var selectpointsmode = null;
+var assemblerElement = assemblerStart();
+const layerInfo = 
+[
+    {
+        name: outlineLayer,
+        color: "#FF0000",
+    },
+    {
+        name: orientLayer,
+        color: "#00FF00",
+    },
+    {
+        name: constructionLayer,
+        color: "#000000",
+    }
+]
+
+
 
 setup();
-var thumbnailsobj = new Thumbnails(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDivID, trashicon,savefileicon, layerthumbnails.destroyLambda );
+var thumbnailsobj = new Thumbnails(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDivID, trashicon,savefileicon, editicon, layerthumbnails.destroyLambda, sessionStorageKey );
+thumbnailsobj.render();
 
+
+var xMousePos = 0;
+var yMousePos = 0;
+var lastScrolledLeft = 0;
+var lastScrolledTop = 0;
+
+$(document).mousemove(function(event) {
+    captureMousePosition(event);
+})  
+
+    $(window).scroll(function(event) {
+        if(lastScrolledLeft != $(document).scrollLeft()){
+            xMousePos -= lastScrolledLeft;
+            lastScrolledLeft = $(document).scrollLeft();
+            xMousePos += lastScrolledLeft;
+        }
+        if(lastScrolledTop != $(document).scrollTop()){
+            yMousePos -= lastScrolledTop;
+            lastScrolledTop = $(document).scrollTop();
+            yMousePos += lastScrolledTop;
+        }
+        // console.log("x = " + xMousePos + " y = " + yMousePos)
+        window.status = "x = " + xMousePos + " y = " + yMousePos;
+    });
+function captureMousePosition(event){
+    xMousePos = event.pageX;
+    yMousePos = event.pageY;
+    window.status = "x = " + xMousePos + " y = " + yMousePos;
+    // console.log("x = " + xMousePos + " y = " + yMousePos)
+}
+function downloadAssemblage(){
+    console.log("hello", assemblerElement)
+    if(assemblerElement){
+        downloadSVG(assemblerElement, "assemblage")
+    }
+}
 
 function reset(){
     // thumbnailsobj.resetLambda = 

@@ -51,11 +51,23 @@ class TextSVG {
         this.text.setAttribute("x", this.point.x);
         this.text.textContent  = this.txt;
     }
+    fromJSON(json){
+        this.fill = json.fill;
+        this.point =json.point;
+        this.id = json.id;
+        this.txt = json.txt;
+        this.text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        this.text.setAttribute("fill", this.fill);
+        this.text.setAttribute("y", this.point.y);
+        this.text.setAttribute("x", this.point.x);
+        this.text.setAttribute("id", this.id);
+        this.text.textContent  = this.txt;
+    }
 }
 
 class Line {
-    constructor(ID, lineClosed=false, stroke="#000") {
-        this.fill = "none";
+    constructor(ID, lineClosed=false, stroke="#000", fill="none") {
+        this.fill = fill;
         this.strokeWidth = 2;
         this.stroke = stroke;
         this.points = [];
@@ -166,9 +178,7 @@ class Line {
             this.closePoint = this.points[0];
         }
     }
-    getPointsArray(){
-        return this.points.map(point => [point.x, point.y]);
-    }
+ 
     toString(){
         var svgString = this.points.reduce(function(str, point){
             str += " L" + point.x + " " + point.y;

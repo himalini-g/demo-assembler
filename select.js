@@ -1,6 +1,5 @@
 class SelectPoints{
-    constructor(svg, orientlinemode){
-        this.orientlinemode = orientlinemode;
+    constructor(svg){
         this.svg = svg;
         this.tolerance = 2;
         this.lineID = null;
@@ -31,7 +30,7 @@ class SelectPoints{
         this.svg.reRender();
 
     }
-    initSelection(e, passedLineID){
+    initSelection( passedLineID){
         this.svg.clearTemp();
         this.svg.reRender();
         this.lineID = passedLineID;
@@ -40,9 +39,6 @@ class SelectPoints{
             x:0,
             y:0
         };
-        var point = svg.relativeMousePosition(e);
-        this.oldCursorPosition = point;
-
     }
     mouseDownHandler(e){
     
@@ -105,19 +101,19 @@ class SelectPoints{
         });
         this.svg.reRender();
     }
-    mouseUpHandler(e){
+    mouseUpHandler(){
   
-        this.lineID = null;
-        this.circleDict = {};
-        this.circleTarget = null;
-        this.moveVec = {
-            x:0,
-            y:0
-        };
-        this.oldCursorPosition = {
-            x:0,
-            y:0
-        };
+        // this.lineID = null;
+        // this.circleDict = {};
+        // this.circleTarget = null;
+        // this.moveVec = {
+        //     x:0,
+        //     y:0
+        // };
+        // this.oldCursorPosition = {
+        //     x:0,
+        //     y:0
+        // };
     }
 }
 
@@ -132,7 +128,7 @@ class Select{
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
         this.svg.tempElems.push(this.selectionBox);
-        // this.svg.element.appendChild(this.selectionBox);
+        this.svg.element.appendChild(this.selectionBox);
         this.selected = [];
         
         this.moveVec = {
@@ -170,7 +166,7 @@ class Select{
         this.resetSelection();
         this.selectingPoints = true;
         this.selected = [closestLineID];
-        this.selectpoints.initSelection(e, closestLineID);
+        this.selectpoints.initSelection(closestLineID);
         
     }
     mouseDownHandler(e){

@@ -23,9 +23,11 @@
 - [ ] orientation lines only work in one direction, make sure that is clear 
 - [ ] move clear layer to be outside the selection area for the layer => make an edit layer button inside the layer 
 - [ ] make text subordinate to a point on a Line Object to ensure that delete takes care of both and that we don't need to handle these individually
+- [ ] create an instructional tutoria,
 ## todo big
-- [ ] make a global file system
-- [x] enable a history stack
+- [x] make a global file system
+- [ ] enable a history stack
 - [x] make the point system consistent across the assembler and the drawing 
 - [x] refactor in general
 - [ ] line smoothing function to reduce lag time + allow control point moving => change the point type to include control points
+- [ ] think about how to seperate out the render from the representation while maintaining real time updates (store element in some dictionary where the caller maintains the element they are referring to and want a string render to) (maintain a "master copy" of each attribute and only return the string of the HTML attribute allowing it to be appended on muliple elements (bad for maintaining things like ID))

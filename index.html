@@ -11,10 +11,18 @@
       <div class="header"> Drawing panel </div>
       <div id="drawing-ui-container" class="drawing-container">
         <div id="drawing-panel" class="drawing-panel">
-          <button onclick="downloadSVG()"> <i class="fa fa-download" aria-hidden="true"></i> download</button>
+          <input type="button" value="instructions" onclick="window.open('https://docs.google.com/document/d/10cBzVxWtj3KSDs_mG5ULo_yI_5gars03324DIMb4k_o/edit?usp=sharing')" />
+          <!-- <button onclick="https://docs.google.com/document/d/10cBzVxWtj3KSDs_mG5ULo_yI_5gars03324DIMb4k_o/edit?usp=sharing">Instructions</button> -->
+          <!-- <button id="myBtn">Instructions</button>
+          <div id="myModal" class="modal">
+            <div class="modal-content">
+              <span class="close">&times;</span>
+              ayo
+              <p>Some text in the Modal..</p>
+            </div>
+          </div> -->
           <button onclick="reset()"> save drawing</button>
           <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
-          
           <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
           </select>
         </div>
@@ -27,10 +35,10 @@
     <h1 class="header"> Assemble </h1>
     <div id="assembler-ui-container" class="drawing-container">
       <div id="generating-tool-panel" class="drawing-panel">
-        <button onclick="rerenderAssemblage()">rerender assemblage</button>
+        <button onclick="rerenderAssemblage()"> <i class="fa fa-refresh" aria-hidden="true"></i> regenerate</button>
+        <button onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
       </div>
       <div id="assembler-svg-container" class="svg-container">
-        <svg class="svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="assembler-svg" x="0px" y="0px" width="600px" height="400px" viewBox="0 0 600 400" enable-background="new 0 0 600 400" xml:space="preserve"></svg>
       </div>
       <div id="thumbnail-container">
         <div id="thumbnails">
@@ -41,9 +49,10 @@
     <script src="objs.js"></script>
     <script src="utils.js"></script>
     <script src="select.js"></script>
-    <script src="script.js"></script>
     <script src="assembler.js"></script>
+    <script src="script.js"></script>
     <script src="solution.js"></script>
+    <script src="instruction_modal.js"></script>
     <script type="module" src="utils.js"></script>
   </body>
 </html>

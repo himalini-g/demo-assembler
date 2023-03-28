@@ -110,7 +110,7 @@ function makeStack(drawingJSONs, recLim, attachments) {
 class Drawing {
   constructor (object, attachments){
     this.lines = JSON.parse(JSON.stringify(object.getLayerAssembler("construction")));
-    this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("outline")));
+    this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("border")));
     this.polygonBorder = this.polygonBorder.flat(1);
     this.polygonBorder.push(this.polygonBorder[0]);
     this.orient = JSON.parse(JSON.stringify(object.getLayerAssembler("orient")));
@@ -272,7 +272,8 @@ function renderDebug(renderStack){
   draw_svg(element, polyLines);
 }
 
-var id = "assembler-svg"
+var id = "assembler-svg";
+
 function assemblerSetup(drawings){
   const attachments = {
     'LIMB': ['MOUTH', 'LIMB'],
@@ -287,8 +288,18 @@ function assemblerSetup(drawings){
 
   var polyLines = draw(toRender);
   draw_svg(element, polyLines, width, height, id);
+  return element;
+}
+function assemblerStart(){
+  var container = document.getElementById("assembler-svg-container");
+  container.innerHTML = ""
+  var element = SVGElement(width, height, width, height, "svg", id);
+  container.appendChild(element);
+  return element; 
+
 }
 
 if (typeof(module) !== "undefined") {
 	module.exports.assemblerSetup = assemblerSetup;
+  module.exports.assemblerStart = assemblerStart;
 }
