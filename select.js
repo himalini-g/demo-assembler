@@ -1,6 +1,7 @@
 class SelectPoints{
-    constructor(svg){
+    constructor(svg, element){
         this.svg = svg;
+        this.element = element;
         this.tolerance = 2;
         this.lineID = null;
         this.circleDict = {};
@@ -49,7 +50,7 @@ class SelectPoints{
             x:0,
             y:0
         };
-        var point = svg.relativeMousePosition(e);
+        var point = relativeMousePosition(e, this.element);
         this.oldCursorPosition = point;
     }
     clickInPoint(e){
@@ -62,7 +63,7 @@ class SelectPoints{
     }
     mouseMoveHandler(e){
       
-        var point = svg.relativeMousePosition(e);
+        var point = relativeMousePosition(e, this.element);
         this.moveVec = {
             x: point.x -  this.oldCursorPosition.x,
             y: point.y -  this.oldCursorPosition.y,
@@ -93,7 +94,7 @@ class SelectPoints{
         }
         points.forEach((point, index) => {
             var circleElement = new Circle(point, index, this.tolerance);
-            circleElement.addToParentElement(this.svg.element);
+            circleElement.addToParentElement(this.element);
             this.circleDict[circleElement.id] = {
                 circle: circleElement,
                 index: index
@@ -119,8 +120,9 @@ class SelectPoints{
 }
 
 class Select{
-    constructor(svg, selectpoints){
+    constructor(svg, selectpoints, element){
         this.svg = svg;
+        this.element = element;
         this.selectpoints = selectpoints;
         this.selectionCss = 'path-selection'
         this.selectionBox =  document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -128,7 +130,7 @@ class Select{
         this.selectionBox.setAttribute('stroke','gray')
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
-        this.svg.element.appendChild(this.selectionBox);
+        this.element.appendChild(this.selectionBox);
         this.selected = [];
         
         this.moveVec = {
@@ -171,7 +173,6 @@ class Select{
     mouseDownHandler(e){
         if(this.selectingPoints){
             var inPoint = this.selectpoints.clickInPoint(e);
-            console.log("inpoint", inPoint);
             if(!inPoint){
                 this.selectingPoints = false;
                 this.resetSelection();
@@ -182,7 +183,6 @@ class Select{
         } else {
              // click is in the selected boxes
             if(this.isSelected() && this.clickInSelected(e)){
-                console.log("hekk")
                 this.clickedInSelection = true;
                 this.startSelection(e);
             // click is outside the selection, therefore start new selection
@@ -225,7 +225,7 @@ class Select{
             return false;
         }
         
-        var point = svg.relativeMousePosition(e);
+        var point = relativeMousePosition(e, this.element);
         var potentialSelected = svg.getLinesInPoint(point);
         const found = potentialSelected.some( line => this.selected.includes(line))
         return found;
@@ -235,10 +235,10 @@ class Select{
             x: 0, 
             y: 0,
         };
-        this.oldCursorPosition = svg.relativeMousePosition(e);
-        this.selectionLeftTopCorner = svg.relativeMousePosition(e);
-        this.originalLeftTopCorner = svg.relativeMousePosition(e);
-        this.selectionBottomRightCorner = svg.relativeMousePosition(e);
+        this.oldCursorPosition = relativeMousePosition(e, this.element);
+        this.selectionLeftTopCorner = relativeMousePosition(e, this.element);
+        this.originalLeftTopCorner = relativeMousePosition(e, this.element);
+        this.selectionBottomRightCorner = relativeMousePosition(e, this.element);
         this.setSelectionBox();
 
     }
@@ -250,7 +250,7 @@ class Select{
     }
     
     updateSelectionBox(e){
-        var point = svg.relativeMousePosition(e);
+        var point = relativeMousePosition(e, this.element);
         var [minX, maxX] = [Math.min(point.x, this.originalLeftTopCorner.x), Math.max(point.x, this.originalLeftTopCorner.x)];
         var [minY, maxY] = [Math.min(point.y, this.originalLeftTopCorner.y), Math.max(point.y, this.originalLeftTopCorner.y)];
         this.selectionLeftTopCorner = {
@@ -264,7 +264,7 @@ class Select{
         };
     }
     updateMoveVec(e){
-        var point = svg.relativeMousePosition(e);
+        var point = relativeMousePosition(e, this.element);
         this.moveVec = {
             x: point.x -  this.oldCursorPosition.x,
             y: point.y -  this.oldCursorPosition.y,

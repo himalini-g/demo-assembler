@@ -7,8 +7,8 @@ class Circle {
         this.id = "circle_" + ID.toString();
         this.elements = {};
     }
-    addToParentElement(parent, parentName){
-        if(parentName in this.elements){
+    addToParentElement(parent){
+        if(parent.id in this.elements){
             return;
         }
         var newCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -23,7 +23,7 @@ class Circle {
         newCircle.classList.add(this.id);
      
         parent.appendChild(newCircle);
-        this.elements[parentName] = newCircle;
+        this.elements[parent.id] = newCircle;
         this.reRender();
     }
     moveByVector(vec){
@@ -51,8 +51,8 @@ class TextSVG {
         this.elements = [];
         this.txt = txt;
     }
-    addToParentElement(parent, parentName){
-        if(parentName in this.elements){
+    addToParentElement(parent){
+        if(parent.id in this.elements){
             return;
         }
         var newText =  document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -64,7 +64,7 @@ class TextSVG {
         newText.classList.add(this.id);
      
         parent.appendChild(newText);
-        this.elements[parentName] = newText;
+        this.elements[parent.id] = newText;
         this.reRender();
 
     }
@@ -107,8 +107,8 @@ class Line {
         this.closePoint = null;
       
     }
-    addToParentElement(parent, parentName){
-        if(parentName in this.elements){
+    addToParentElement(parent){
+        if(parent.id in this.elements){
             return;
         }
         var newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -118,7 +118,7 @@ class Line {
         newPath.classList.add(this.id);
      
         parent.appendChild(newPath);
-        this.elements[parentName] = newPath;
+        this.elements[parent.id] = newPath;
         this.reRender();
 
     }

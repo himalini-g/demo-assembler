@@ -3,7 +3,7 @@ class Svg {
     constructor(element, activeLayer, layerInfo) {
         this.name = "svg"
         this.uniqueID = 1;
-        this.renderelems = [];
+        this.renderelems = {};
         this.element = element;
         this.tempElems = [];
         this.layerSelected = activeLayer;
@@ -20,13 +20,7 @@ class Svg {
         var ids = Object.keys(this.layers[layerName]);
         this.deleteIDs(ids);
     }
-    relativeMousePosition(point){
-        var parentRect = this.element.getBoundingClientRect();
-        return {
-            x: point.pageX - parentRect.left,
-            y: point.pageY - parentRect.top
-        }
-    }
+    
     validID(){
         var ID = this.uniqueID;
         this.uniqueID += 1;
@@ -43,10 +37,10 @@ class Svg {
         if(pointIsRelative){
             relativePoint = point;
         } else{
-            relativePoint = this.relativeMousePosition(point);
+            relativePoint = relativeMousePosition(point, this.element);
         }
         var textObj = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
-        textObj.addToParentElement(this.element, this.name);
+        textObj.addToParentElement(this.element);
         this.text[textObj.id] = textObj;
         return textObj.id;
     }
@@ -57,11 +51,11 @@ class Svg {
         if(pointIsRelative){
             relativePoint = point;
         } else{
-            relativePoint = this.relativeMousePosition(point);
+            relativePoint = relativeMousePosition(point, this.element);
         }
         
         line.appendPoint(relativePoint);
-        line.addToParentElement(this.element, this.name);
+        line.addToParentElement(this.element);
         this.layers[this.layerSelected][line.id] = line;
         return line.id;
     }
@@ -102,7 +96,7 @@ class Svg {
         if(pointIsRelative){
             relativePoint = point;
         } else{
-            relativePoint = this.relativeMousePosition(point);
+            relativePoint = relativeMousePosition(point,  this.element);
         }
         this.layers[this.layerSelected][lineID].appendPoint(relativePoint);
         return lineID;
@@ -139,7 +133,7 @@ class Svg {
         return selected;
     }
     getClosestLine(point){
-        var relativePoint = this.relativeMousePosition(point);
+        var relativePoint = relativeMousePosition(point, this.element);
         var closestLine = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
             var distance = minDistanceToLine(relativePoint, curLine.points);
             if( distance < acc.distance ){
@@ -151,7 +145,7 @@ class Svg {
         return closestLine;
     }
     generatePerp(lineID, point){
-        var relativePoint = this.relativeMousePosition(point);
+        var relativePoint = relativeMousePosition(point, this.element);
         const pickDir = {
             average: null,
             vector: null,
@@ -210,7 +204,6 @@ class Svg {
             }
             if(id in this.layers[this.layerSelected]){
                 this.layers[this.layerSelected][id].destroy();
-                console.log("hello");
                 delete this.layers[this.layerSelected][id];
             }
         });
@@ -291,6 +284,13 @@ class OutlineMode{
         if(this.svg.checkMembership(this.outlineID)){
             this.selectpoints.initSelection(this.outlineID);
         }
+    }
+}
+function relativeMousePosition(point, element){
+    var parentRect = element.getBoundingClientRect();
+    return {
+        x: point.pageX - parentRect.left,
+        y: point.pageY - parentRect.top
     }
 }
 function downloadSVG(element=null, fileName=null){
@@ -434,7 +434,7 @@ function setup(passedSVG=null){
         svg.element = svgElement;
         svg.reRender();
     }
-    selectpointsmode = new SelectPoints(svg);
+    selectpointsmode = new SelectPoints(svg, svgElement);
     var orientlinemode = new OrientLineMode(svg, selectpointsmode, svgElement);
     selectpointsmode.orientlinemode = orientlinemode;
     select = new Select(svg, selectpointsmode, svgElement);
@@ -597,7 +597,7 @@ class SvgUI{
         var lines = this.svg.getLayer(layerName);
         var thumbnailElement = this.layerElements[this.svg.layerSelected]
         lines.forEach(line => {
-            line.addToParentElement(thumbnailElement, "layer_thumbnail");
+            line.addToParentElement(thumbnailElement);
         });
     }
 }
@@ -813,17 +813,14 @@ $(document).mousemove(function(event) {
             lastScrolledTop = $(document).scrollTop();
             yMousePos += lastScrolledTop;
         }
-        // console.log("x = " + xMousePos + " y = " + yMousePos)
         window.status = "x = " + xMousePos + " y = " + yMousePos;
     });
 function captureMousePosition(event){
     xMousePos = event.pageX;
     yMousePos = event.pageY;
     window.status = "x = " + xMousePos + " y = " + yMousePos;
-    // console.log("x = " + xMousePos + " y = " + yMousePos)
 }
 function downloadAssemblage(){
-    console.log("hello", assemblerElement)
     if(assemblerElement){
         downloadSVG(assemblerElement, "assemblage")
     }
@@ -842,5 +839,6 @@ if (typeof(module) !== "undefined") {
     module.exports.layerInfo = layerInfo;
     module.exports.width = width;
     module.exports.height = height;
+    module.exports.relativeMousePosition = relativeMousePosition;
     module.exports.SVGElement = SVGElement;
 }
