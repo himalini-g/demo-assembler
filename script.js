@@ -1,418 +1,34 @@
-
-class Svg {
-    constructor(element, activeLayer, layerInfo) {
-        this.name = "svg"
-        this.uniqueID = 1;
-        this.element = element;
-        this.tempElems = [];
-        this.layerSelected = activeLayer;
-        this.layers = {};
-        this.text = {};
-        this.layerColors = {};
-        this.layerInfo = layerInfo;
-        this.layerInfo.forEach(layer => {
-            this.layers[layer.name] = {};
-            this.layerColors[layer.name] = layer.color;
-        });
-    }
-    changeElement(parentElement){
-        Object.entries(this.layers).forEach(([_, layer]) => {
-            Object.entries(layer).forEach(([_, line]) =>{
-                line.destroyParent(this.element.id);
-                line.addToParentElement(parentElement);
-            });
-        });
-        this.tempElems.forEach(elem =>{
-            elem.destroyParent(this.element.id);
-            elem.addToParentElement(parentElement);
-        });
-        Object.entries(this.text).forEach(([_, elem])=> {
-            elem.destroyParent(this.element.id);
-            elem.addToParentElement(parentElement);
-        });
-        this.element = parentElement;
-    }
-    clearLayer(layerName){
-        var ids = Object.keys(this.layers[layerName]);
-        this.deleteIDs(ids);
-    }
-    
-    validID(){
-        var ID = this.uniqueID;
-        this.uniqueID += 1;
-        return ID;
-    }
- 
-    getLayer(layerName){
-        return Object.entries(this.layers[layerName]).map(([_, line]) => line);
-
-    }
-    addText(point, text, pointIsRelative=false, lineID){
-        var color = this.layerColors[this.layerSelected];
-        var relativePoint;
-        if(pointIsRelative){
-            relativePoint = point;
-        } else{
-            relativePoint = relativeMousePosition(point, this.element);
-        }
-        var textObj = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
-        textObj.addToParentElement(this.element);
-        this.text[textObj.id] = textObj;
-        return textObj.id;
-    }
-    addLine(point, pointIsRelative=false, closed=false){
-        var color = this.layerColors[this.layerSelected];
-        var line = new Line(this.validID(), closed, color);
-        var relativePoint;
-        if(pointIsRelative){
-            relativePoint = point;
-        } else{
-            relativePoint = relativeMousePosition(point, this.element);
-        }
+class GlobalState{
+    constructor(){
+        this.width = 800;
+        this.height = 600;
+        this.thumbnailHeight = Math.ceil(height / 4);
+        this.thumbnailWidth = Math.ceil(width / 4);
+        this.thumbnailDivClass = "thumbnail-container"
+        this.thumbnailDivID = "thumbnail-container"
+        this.selectedCSS = "selected-element" 
+        this.layerDivID = "layer-container"
+        this.svgID = "svgElement";
+        this.svgClass = "svg";
+        this.drawMode = "draw";
+        this.drawModeButtonID = "draw-button";
+        this.selectMode = "select";
+        this.selectModeButtonID = "select-button";
         
-        line.appendPoint(relativePoint);
-        line.addToParentElement(this.element);
-        this.layers[this.layerSelected][line.id] = line;
-        return line.id;
-    }
- 
-    reRender(){
-        Object.entries(this.layers).forEach(([_, layer]) => {
-            Object.entries(layer).forEach(([_, line]) =>{
-                line.reRender();
-            });
-        });
-        this.tempElems.forEach(elem =>{
-            elem.reRender();
-        });
-        Object.entries(this.text).forEach(([_, elem])=> {
-            elem.reRender();
-        })
-    }
- 
-    getLayerAssembler(layer){
-        return Object.entries(this.layers[layer]).map(([_, line]) => {
-            return line.points;
-        })
-    }
-    getLine(lineID){
-        return this.layers[this.layerSelected][lineID];
-    }
-    genTextID(lineID){
-        return lineID + "_text";
-    }
-    getText(lineID){
-        if(this.genTextID(lineID) in this.text){
-            return [true, this.text[this.genTextID(lineID)]];
-        }
-        return [false, this.text[this.genTextID(lineID)]]
-    }
-    updateSvgPath(point, lineID, pointIsRelative=false) {
-        var relativePoint;
-        if(pointIsRelative){
-            relativePoint = point;
-        } else{
-            relativePoint = relativeMousePosition(point, this.element);
-        }
-        this.layers[this.layerSelected][lineID].appendPoint(relativePoint);
-        return lineID;
-    }
-    clearTemp(){
-        this.tempElems.forEach(elem => elem.destroy());
-        this.tempElems = [];
-    }
-
-    moveLines(lines, vec){
-        lines.map(line => {
-            line.moveByVector(vec)
-        });
-        lines.forEach(line  => {
-            if(this.genTextID(line.id) in this.text){
-                this.text[this.genTextID(line.id)].moveByVector(vec);
-            }
-        })
-    }
-    getLinesInPoint(point){
-        var selected = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine]) => {
-            if(curLine.pointInRect(point)){
-                acc.push(curLine)
-            }
-            return acc;
-        }, []);
-        return selected;
-    }
-    getLinesInRect(rect){
-        var selected = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
-            if(curLine.inRect(rect)){
-                acc.push(curLine)
-            }
-            return acc;
-        }, []);
-        return selected;
-    }
-    getClosestLine(point){
-        var relativePoint = relativeMousePosition(point, this.element);
-        var closestLine = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine])=> {
-            var distance = minDistanceToLine(relativePoint, curLine.points);
-            if( distance < acc.distance ){
-                acc.distance = distance;
-                acc.line = curLine;
-            }
-            return acc;
-        }, {distance: Infinity, line: null});
-        return closestLine;
-    }
-    computeAverage(lineID){
-        var points = this.getLine(lineID).points;
-        var pointSum = {
-            x: points[0].x + points[1].x, 
-            y: points[0].y + points[1].y
-        }
-        var x = Math.abs(points[0].x - points[1].x)
-        var y = Math.abs(points[0].y - points[1].y)
-        const length = Math.sqrt(x * x + y * y);
-        const average = {
-            x: pointSum.x / 2.0,
-            y: pointSum.y / 2.0
-        }  
-        return [average, length];
-    }
-    deleteIDs(IDs){
-        IDs.forEach(id =>{
-            if(this.genTextID(id) in this.text){
-                this.text[this.genTextID(id)].destroy();
-                delete this.text[this.genTextID(id)];
-            }
-            if(id in this.layers[this.layerSelected]){
-                this.layers[this.layerSelected][id].destroy();
-                delete this.layers[this.layerSelected][id];
-            }
-        });
-    }
-    checkMembership(ID){
-        if(ID in this.layers[this.layerSelected]){
-            return true;
-        }
-        return false;
-    }
-   
-    fromJSON(jsonObj){
-        this.name = jsonObj.name
-        this.uniqueID = jsonObj.uniqueID 
-        this.tempElems = [];
-        this.layers = {};
-        this.text = {};
-        this.layerInfo = jsonObj.layerInfo;
-        this.layerInfo.forEach(layer => {
-            this.layers[layer.name] = {};
-            this.layerColors[layer.name] = layer.color;
-        });
-        Object.entries(jsonObj.layers).forEach(([layerKey, layerJSON]) => {
-            Object.entries(layerJSON).forEach(([lineID, lineJSON]) =>{
-                var line = new Line("");
-                line.jsonToObj(lineJSON);
-                this.layers[layerKey][lineID] = line;
-                this.element.appendChild(line.path);
-            });
-        });
-        Object.entries(jsonObj.text).forEach(([textID, textJSON]) =>{
-            var text = new TextSVG(textJSON.point, "", textJSON.text);
-            this.text[textID] = text;
-            text.fromJSON(textJSON);
-            this.element.appendChild(text.text);
-        })
-    }
-    
-}
-
-class OutlineMode{
-    constructor(svg, selectpoints){
-        this.outlineID = null;
-        this.svg = svg;
-        this.selectpoints = selectpoints;
-        this.selectingPoints = false;
-        this.errorcolor = "#FF0000"
-    }
-    mouseDownHandler(e){
-        this.selectingPoints = this.selectpoints.clickInPoint(e);
-        if(this.selectingPoints){
-            this.selectpoints.mouseDownHandler(e);
-            return;
-        }
-
-        if(!this.svg.checkMembership(this.outlineID)){
-            this.outlineID = this.svg.addLine(e, false, true);
-            this.selectpoints.reset();
-            this.selectpoints.initSelection( this.outlineID);
-        }
-        this.svg.updateSvgPath(e, this.outlineID);
-    }
-    mouseMoveHandler(e){
-        if(this.selectingPoints){
-            this.selectpoints.mouseMoveHandler(e);
-            return;
-        }
-        
-        this.svg.getLine(this.outlineID).removePoint();
-        this.svg.updateSvgPath(e, this.outlineID);
-       
-    }
-    errorCheck(){
-        var points = this.svg.getLine(this.outlineID).points;
-        var closePoint = this.svg.getLine(this.outlineID).closePoint;
-        if(closePoint == null){
-            console.error("outline does not have a close point");
-            return;
-        }
-        points.push(closePoint);
-        for(var i = 0; i < points.length - 1; i++){
-            var p1 = points[i];
-            var p2 = points[i + 1];
-            
-        }
-    }
-    mouseUpHandler(){
-        if(this.selectingPoints){
-            this.selectpoints.mouseUpHandler();
-            return;
-        }
-        if(this.svg.checkMembership(this.outlineID)){
-            this.selectpoints.initSelection(this.outlineID);
-        }
-    }
-}
-function relativeMousePosition(point, element){
-    var parentRect = element.getBoundingClientRect();
-    var p = {
-        x: point.x - parentRect.left,
-        y: point.y - parentRect.top
-    }
-    return p;
-}
-function downloadSVG(element=null, fileName=null){
-    if(element == null){
-        element = svg.element;
-        fileName = svg.name;
-    }
-
-    var preface = '<?xml version="1.0" standalone="no"?>\r\n';
-    var svgBlob = new Blob([preface, element.outerHTML], {type:"image/svg+xml;charset=utf-8"});
-    var downloadLink = document.createElement("a");
-    downloadLink.href = URL.createObjectURL(svgBlob);
-    downloadLink.download = fileName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-} 
-
-
-class ConstructionMode {
-    constructor(svg){
-        this.curLineID = null;
-        this.svg = svg;
-    }
-    mouseDownHandler(e){
-        this.curLineID = this.svg.addLine(e);
-    }
-    mouseMoveHandler(e){
-        this.svg.updateSvgPath(e, this.curLineID);
-    }
-    mouseUpHandler(){
-
     }
 }
 
-class OrientLineMode{
-    constructor(svg, selectpoints){
-        this.svg = svg;
-        this.baseID = null;
-        this.selectpoints = selectpoints;
-        this.selectingPoints = false;
-    }
-    reComp(lineID){
-        const [average, length] =  this.svg.computeAverage(lineID);
-        this.svg.getLine(lineID).removePoint();
-        var [b, text] = this.svg.getText(lineID);
-        if(b){
-            text.point = average;
-            text.txt = Math.trunc(length).toString();
-        }
-        this.svg.updateSvgPath(average, lineID, true);
-    }
-    mouseDownHandler(e){
-        // weird line edge cases
-        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
-            this.svg.deleteIDs([this.baseID]);
-            this.baseID = null;
-        }
-        
-        this.selectingPoints = this.selectpoints.clickInPoint(e);
-
-        if(this.selectingPoints){
-            this.selectpoints.mouseDownHandler(e);
-            return;
-        }
-
-        if(this.baseID == null){
-            this.selectpoints.reset();
-            this.baseID = this.svg.addLine(e);
-            this.svg.updateSvgPath(e, this.baseID);
-            this.selectpoints.initSelection(this.baseID);
-        }       
-    }
-    mouseMoveHandler(e){
- 
-        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
-            this.baseID = null;
-        }
-        if(this.selectingPoints){
-            this.selectpoints.mouseMoveHandler(e);
-            return;
-        }
-
-        if(this.baseID != null){
-            this.svg.getLine(this.baseID).removePoint();
-            this.svg.updateSvgPath(e, this.baseID);
-        }
-    }
-    mouseUpHandler(){
-        if(this.selectingPoints){
-            this.selectpoints.mouseUpHandler();
-            return;
-        }
-        // edge case checking;
-        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
-            this.baseID = null;
-            return;
-        } else if(this.baseID == null){
-            return;
-        }
-
-        this.selectpoints.initSelection(this.baseID);  
-        if(this.svg.getLine(this.baseID).points.length < 2){
-            
-            this.svg.deleteIDs([this.baseID]);
-            this.baseID = null;
-        } else if(this.svg.getLine(this.baseID).points.length == 2){
-            var [average, length]  = this.svg.computeAverage(this.baseID);
-            this.svg.updateSvgPath(average, this.baseID, true);
-            this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
-            this.baseID = null;
-        }
-    }
-}
 
 
 function setup(passedSVG=null){
-    var svgElementNS = SVGElement(width, height, width, height, svgClass, svgID);
+    svgElement = SVGElement(width, height, width, height, svgClass, svgID);
     var svgContainer = document.getElementById("svg-container");
     
     svgContainer.innerHTML = "";
-    svgContainer.appendChild(svgElementNS);
-    svgElement = document.getElementById(svgID);
+    svgContainer.appendChild(svgElement);
     mode = document.getElementById("mode");
 
-    svg = new Svg(svgElement, LAYERSELECTED, layerInfo);
+    svg = new Svg(svgElement, "tile_" + tileCounter.toString(),  LAYERSELECTED, layerInfo, outlineLayer, orientLayer ,invalidCSS);
     if(passedSVG != null){
         svg = passedSVG;
         svg.changeElement(svgElement);
@@ -421,8 +37,15 @@ function setup(passedSVG=null){
     var orientlinemode = new OrientLineMode(svg, selectpointsmode, svgElement);
     selectpointsmode.orientlinemode = orientlinemode;
     select = new Select(svg, selectpointsmode);
+    
+
     layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
-    var outlinemode = new OutlineMode(svg, selectpointsmode);
+    var outlinemode = new OutlineMode(svg, selectpointsmode, outlineLayer);
+    const compliance = () => {
+        svg.errorCheckOutline();
+        svg.errorCheckOrient();
+    }
+    select.compliance = compliance;
     var constructionmode = new ConstructionMode(svg);
     var eventMap = {};
 
@@ -464,9 +87,7 @@ function setup(passedSVG=null){
     $("#" + svgID).mouseleave(function () {
         mouseUp()
     });
-    // $("#" + svgID).mouseenter(function (e) {
-    //     mouseDown(e)
-    // });
+    
     $(document).keyup(function(e){
         if(e.key === "Backspace") {
             select.deleteSelected();
@@ -612,7 +233,6 @@ class Thumbnails{
         this.resetLambda = resetLambda;
         this.downloadProjectButton =  makeButton("project save");
         this.downloadProjectButton.onclick = this.downloadProjectLambda(); 
-        // sessionStorage.removeItem(this.sessionStorageKey);
         if(sessionStorage.getItem(this.sessionStorageKey)){
             this.loadFromSessionStorage();
         }
@@ -622,7 +242,7 @@ class Thumbnails{
         var project = JSON.parse(sessionStorage.getItem(this.sessionStorageKey));
         Object.entries(project).forEach(([key, svgJSON], index) => {
             var svgElement = SVGElement(width, height, width, height, "svg", index.toString());
-            var svgClass = new Svg(svgElement, LAYERSELECTED, layerInfo);
+            var svgClass = new Svg(svgElement,  LAYERSELECTED, layerInfo);
             svgClass.fromJSON(svgJSON)
             this.addThumbnail(svgClass);
         })
@@ -715,8 +335,22 @@ class Thumbnails{
         }
         return downloadProject
       }
-    
 }
+
+function downloadAssemblage(){
+    if(assemblerElement){
+        downloadSVG(assemblerElement, "assemblage")
+    }
+}
+
+function reset(){
+    thumbnailsobj.addThumbnail(svg);
+    layerthumbnails.destroy();
+    setup();
+    thumbnailsobj.render();
+}
+
+var tileCounter = 0;
 const width = 800;
 const height = 600;
 const thumbnailHeight = Math.ceil(height / 4);
@@ -754,6 +388,7 @@ const clearicon = `<i class="fa fa-times" aria-hidden="true"></i>`
 const savefileicon = ` <i class="fa fa-download" aria-hidden="true"></i> `
 const editicon = `<i class="fa fa-pencil" aria-hidden="true"></i> `
 const sessionStorageKey = "project"
+const invalidCSS = "invalid"
 var svgElement = null;
 var svg = null;
 var select = null;
@@ -764,7 +399,7 @@ const layerInfo =
 [
     {
         name: outlineLayer,
-        color: "#0000FF",
+        color: "#A000F0",
     },
     {
         name: orientLayer,
@@ -783,51 +418,9 @@ var thumbnailsobj = new Thumbnails(width, height, thumbnailWidth, thumbnailHeigh
 thumbnailsobj.render();
 
 
-var xMousePos = 0;
-var yMousePos = 0;
-var lastScrolledLeft = 0;
-var lastScrolledTop = 0;
-
-$(document).mousemove(function(event) {
-    captureMousePosition(event);
-})  
-    $(window).scroll(function(event) {
-        if(lastScrolledLeft != $(document).scrollLeft()){
-            xMousePos -= lastScrolledLeft;
-            lastScrolledLeft = $(document).scrollLeft();
-            xMousePos += lastScrolledLeft;
-        }
-        if(lastScrolledTop != $(document).scrollTop()){
-            yMousePos -= lastScrolledTop;
-            lastScrolledTop = $(document).scrollTop();
-            yMousePos += lastScrolledTop;
-        }
-        window.status = "x = " + xMousePos + " y = " + yMousePos;
-    });
-function captureMousePosition(event){
-    xMousePos = event.pageX;
-    yMousePos = event.pageY;
-    window.status = "x = " + xMousePos + " y = " + yMousePos;
-}
-function downloadAssemblage(){
-    if(assemblerElement){
-        downloadSVG(assemblerElement, "assemblage")
-    }
-}
-
-function reset(){
-    // thumbnailsobj.resetLambda = 
-
-    thumbnailsobj.addThumbnail(svg);
-    layerthumbnails.destroy();
-    setup();
-    thumbnailsobj.render();
-}
 if (typeof(module) !== "undefined") {
-	module.exports.Svg = Svg;
     module.exports.layerInfo = layerInfo;
     module.exports.width = width;
     module.exports.height = height;
-    module.exports.relativeMousePosition = relativeMousePosition;
     module.exports.SVGElement = SVGElement;
 }

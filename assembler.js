@@ -215,9 +215,9 @@ class Drawing {
     var orientLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.opening)));
     var vectorLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.vector)));
     var retLines = JSON.parse(JSON.stringify(this.lines));
-    // retLines.push(...orientLines);
-    // retLines.push(...vectorLines);
-    // retLines.push(this.polygonBorder);
+    retLines.push(...orientLines);
+    retLines.push(...vectorLines);
+    retLines.push(this.polygonBorder);
     return retLines;
   }
 

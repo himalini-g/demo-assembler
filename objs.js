@@ -40,10 +40,12 @@ class Circle {
         
     }
     destroy(){
-        Object.entries(this.elements).forEach(([_, circle]) => circle.outerHTML = "");
+        Object.entries(this.elements).forEach(([_, element]) => element.outerHTML = "");
+        this.elements = {};
     }
     destroyParent(parentName){
         if(parentName in this.elements){
+            this.elements[parentName].outerHTML = "";
             delete this.elements[parentName]
         }
     }
@@ -96,9 +98,11 @@ class TextSVG {
     }
     destroy(){
         Object.entries(this.elements).forEach(([_, element]) => element.outerHTML = "");
+        this.elements = {};
     }
     destroyParent(parentName){
         if(parentName in this.elements){
+            this.elements[parentName].outerHTML = "";
             delete this.elements[parentName]
         }
     }
@@ -222,7 +226,14 @@ class Line {
         
     }
     destroy(){
-        Object.entries(this.elements).forEach(([_, path]) => path.outerHTML = "");
+        Object.entries(this.elements).forEach(([_, element]) => element.outerHTML = "");
+        this.elements = {};
+    }
+    destroyParent(parentName){
+        if(parentName in this.elements){
+            this.elements[parentName].outerHTML = "";
+            delete this.elements[parentName]
+        }
     }
     moveByVector(vec){
         this.points = this.points.map(point => {
@@ -253,11 +264,6 @@ class Line {
     }
     addCSS(CSSClass){
         Object.entries(this.elements).forEach(([_, path]) => path.classList.add(CSSClass));
-    }
-    destroyParent(parentName){
-        if(parentName in this.elements){
-            delete this.elements[parentName]
-        }
     }
 }
 

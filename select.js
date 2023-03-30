@@ -144,6 +144,7 @@ class Select{
         };
 
         this.selectingPoints = false;
+        this.compliance = null;
     }
     isSelected(){
         return this.selected.length > 0;
@@ -168,6 +169,8 @@ class Select{
                 this.startSelection(e);
             }
             this.selectpoints.mouseDownHandler(e, this.selected[0]);
+            console.log("hello")
+            this.compliance();
         } else {
              // click is in the selected boxes
             if(this.isSelected() && this.clickInSelected(e)){
@@ -183,6 +186,7 @@ class Select{
     mouseMoveHandler(e){
         if(this.selectingPoints){
             this.selectpoints.mouseMoveHandler(e);
+            this.compliance();
         } else {
             if(this.clickedInSelection){
                 this.updateSelectionBox(e);

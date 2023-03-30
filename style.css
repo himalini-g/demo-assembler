@@ -7,6 +7,9 @@ html, body
     background-color: #1e2433;
     color: white;
 }
+.invalid {
+    stroke: red;
+}
 .header{
     font-size: 40px;
     padding: 10px 40px;
