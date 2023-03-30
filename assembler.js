@@ -364,7 +364,7 @@ function assemblerSetup(drawings){
   draw_svg(element, polyLines, width, height, id);
   return element;
 }
-function assemblerStart(){
+function assemblerStart(width, height){
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", id);

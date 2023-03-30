@@ -73,7 +73,7 @@ class SelectPoints{
         var index = this.circleDict[this.circleTarget].index;
         circle.moveByVector(this.moveVec);
         this.svg.getLine(this.lineID).movePoint(index, this.moveVec);
-        if(this.svg.layerSelected == orientLayer){
+        if(this.svg.layerSelected == this.orientlinemode.name){
             this.orientlinemode.reComp(this.lineID);
         }
 
@@ -89,7 +89,7 @@ class SelectPoints{
     }
     renderPoints(){
         var points = this.svg.getLine(this.lineID).points;
-        if(this.svg.layerSelected == orientLayer){
+        if(this.svg.layerSelected == this.orientlinemode.name){
             points = points.slice(0, 2);
         }
         points.forEach((point, index) => {
@@ -152,7 +152,7 @@ class Select{
     doubleClickHandler(e){
         this.clickedInSelection = false;
         this.resetSelectionBox();
-        var closestLine = svg.getClosestLine(e);
+        var closestLine = this.svg.getClosestLine(e);
         this.resetSelection();
         this.selectingPoints = true;
         this.selected = [closestLine.line];
@@ -218,7 +218,7 @@ class Select{
         }
         
         var point = relativeMousePosition(e, this.element);
-        var potentialSelected = svg.getLinesInPoint(point);
+        var potentialSelected = this.svg.getLinesInPoint(point);
         const found = potentialSelected.some( line => this.selected.includes(line))
         return found;
     }

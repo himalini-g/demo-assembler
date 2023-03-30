@@ -19,7 +19,6 @@ class Svg {
         this.invalidCSS = invalidCSS;
     }
     errorCheckOrient(){
-        console.log("hello")
         var outlineIDs = Object.entries(this.layers[this.outlineLayerName]);
         if(outlineIDs.length == 0){
             return;
@@ -60,7 +59,6 @@ class Svg {
     }
     errorCheckOutline(){
         if(this.layerSelected != this.outlineLayerName ){
-            console.log(this.layerSelected, this.layerName);
             return;
         }
         var outlineIDs = Object.entries(this.layers[this.outlineLayerName]);
@@ -399,7 +397,8 @@ class ConstructionMode {
 }
 
 class OrientLineMode{
-    constructor(svg, selectpoints){
+    constructor(svg, selectpoints, name){
+		this.name = name;
         this.svg = svg;
         this.baseID = null;
         this.selectpoints = selectpoints;
