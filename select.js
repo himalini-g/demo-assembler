@@ -1,7 +1,7 @@
 class SelectPoints{
-    constructor(svg, element){
+    constructor(svg){
         this.svg = svg;
-        this.element = element;
+        this.element = this.svg.element;
         this.tolerance = 2;
         this.lineID = null;
         this.circleDict = {};
@@ -104,25 +104,13 @@ class SelectPoints{
         this.svg.reRender();
     }
     mouseUpHandler(){
-  
-        // this.lineID = null;
-        // this.circleDict = {};
-        // this.circleTarget = null;
-        // this.moveVec = {
-        //     x:0,
-        //     y:0
-        // };
-        // this.oldCursorPosition = {
-        //     x:0,
-        //     y:0
-        // };
     }
 }
 
 class Select{
-    constructor(svg, selectpoints, element){
+    constructor(svg, selectpoints){
         this.svg = svg;
-        this.element = element;
+        this.element = this.svg.element;
         this.selectpoints = selectpoints;
         this.selectionCss = 'path-selection'
         this.selectionBox =  document.createElementNS('http://www.w3.org/2000/svg', 'rect');

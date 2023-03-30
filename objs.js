@@ -42,6 +42,11 @@ class Circle {
     destroy(){
         Object.entries(this.elements).forEach(([_, circle]) => circle.outerHTML = "");
     }
+    destroyParent(parentName){
+        if(parentName in this.elements){
+            delete this.elements[parentName]
+        }
+    }
 }
 class TextSVG {
     constructor(point, ID, txt, fill="#0000ff") {
@@ -91,6 +96,11 @@ class TextSVG {
     }
     destroy(){
         Object.entries(this.elements).forEach(([_, element]) => element.outerHTML = "");
+    }
+    destroyParent(parentName){
+        if(parentName in this.elements){
+            delete this.elements[parentName]
+        }
     }
 }
 
@@ -243,6 +253,11 @@ class Line {
     }
     addCSS(CSSClass){
         Object.entries(this.elements).forEach(([_, path]) => path.classList.add(CSSClass));
+    }
+    destroyParent(parentName){
+        if(parentName in this.elements){
+            delete this.elements[parentName]
+        }
     }
 }
 

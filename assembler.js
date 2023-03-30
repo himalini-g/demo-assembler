@@ -1,3 +1,4 @@
+
 function draw(renderStack){
     var polyLines = [];
     for(var l = 0; l< renderStack.length; l++){
@@ -6,7 +7,13 @@ function draw(renderStack){
     }
     return polyLines;
 }
+const P2ArrayToArray = arr => arr.reduce((acc, point)=> {
 
+    acc.push(point.x);
+    acc.push(point.y);
+  
+  return acc;
+}, []);
 class Assemblage{
   constructor(drawingJSONS, recursiveLimit, attachments){
     this.referenceDrawingJsons = drawingJSONS;
@@ -14,17 +21,27 @@ class Assemblage{
     this.attachments = attachments;
     this.drawingStack = [];
     this.renderStack = [];
+    this.debug = true;
 
   }
   deepCopies(){
     return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
   }
   shuffledDrawingIndexes(){
-    return shuffleArray(this.referenceDrawingJsons.map((_, index)=>index));
+    if(!this.debug){
+      return shuffleArray(this.referenceDrawingJsons.map((_, index)=>index));
+    } else{
+      return this.referenceDrawingJsons.map((_, index)=>index);
+    }
   }
   shuffledDeepCopies(){
     var drawings = this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
-    return shuffleArray(drawings);
+    if(!this.debug){
+      return shuffleArray(drawings);
+    } else {
+      return drawings;
+    }
+    
   }
   addDrawingToAssemblage(drawing){
     this.renderStack.push(drawing);
@@ -37,8 +54,13 @@ class Assemblage{
     return borders;
   }
   randomDrawing(){
-    var randomReferenceJson = this.referenceDrawingJsons[randomInteger(0, this.referenceDrawingJsons.length)];
-    return new Drawing(randomReferenceJson, this.attachments);
+    if(!this.debug){
+      var randomReferenceJson = this.referenceDrawingJsons[randomInteger(0, this.referenceDrawingJsons.length)];
+      return new Drawing(randomReferenceJson, this.attachments);
+    } else{
+      return new Drawing(this.referenceDrawingJsons[0], this.attachments);
+    }
+   
   }
   fitToCanvas(){
     var newLineList = this.renderStack.map(drawing => drawing.lines).flat(2);
@@ -108,6 +130,7 @@ function makeStack(drawingJSONs, recLim, attachments) {
 
 
 class Drawing {
+
   constructor (object, attachments){
     this.lines = JSON.parse(JSON.stringify(object.getLayerAssembler("construction")));
     this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("border")));
@@ -120,7 +143,7 @@ class Drawing {
     for(var i = 0; i< this.orient.length; i++){
         var orientLine = {
           opening: this.orient[i].slice(0, 2),
-          vector: this.orient[i].slice(2),
+          vector: this.getRay(this.orient[i].slice(0, 2)),
           attachedDrawing: false,
           //TODO: fix,
           label: Object.keys(this.attachments)[0],
@@ -129,6 +152,58 @@ class Drawing {
         this.orientLines.push(orientLine)
     }
 
+  }
+  getRays(points){
+  
+    const pointSum = {
+      x: points[0].x + points[1].x, 
+      y: points[0].y + points[1].y
+    };
+    const average = {
+      x: pointSum.x / 2.0,
+      y: pointSum.y / 2.0
+    };
+    const vector = {
+      x: points[1].x - points[0].x,
+      y: points[1].y - points[0].y,
+    };
+    const ray1 = {
+      x: (vector.y * -1),
+      y: vector.x,
+    };
+
+    const ray2 = {
+      x: vector.y,
+      y: (vector.x * -1),
+    };
+    const normal1 = {
+      x: ray1.x + average.x,
+      y: ray1.y + average.y,
+    };
+
+    const normal2 = {
+      x:  ray2.x + average.x,
+      y:  ray2.y + average.y,
+    };
+    return [[average, ray1 ],[average, normal1], [average, ray2 ], [average, normal2]] 
+  }
+  getRay(line){
+ 
+    const [ray1, normal1, ray2, normal2] = this.getRays(line);
+    const polygon = P2ArrayToArray(this.polygonBorder);
+    const raycast1 = PolyK.Raycast(polygon, ray1[0].x, ray1[0].y,  ray1[1].x, ray1[1].y);
+    const raycast2 = PolyK.Raycast(polygon, ray2[0].x, ray2[0].y,  ray2[1].x, ray2[1].y);
+    if(raycast1 == null && raycast2 == null){
+      return normal1;
+    } else if(raycast1 == null){
+      return normal1;
+    } else if(raycast2 == null){
+      return normal2;
+    } else if (raycast1.dist < raycast2.dist){
+      return normal2;
+    } else {
+      return normal1;
+    }
   }
   getOrientIndexOptions(targetLabels){
 
@@ -140,9 +215,9 @@ class Drawing {
     var orientLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.opening)));
     var vectorLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.vector)));
     var retLines = JSON.parse(JSON.stringify(this.lines));
-    // retLines.push(...orientLines);
-    // retLines.push(...vectorLines);
-    // retLines.push(this.polygonBorder);
+    retLines.push(...orientLines);
+    retLines.push(...vectorLines);
+    retLines.push(this.polygonBorder);
     return retLines;
   }
 
@@ -278,7 +353,7 @@ function assemblerSetup(drawings){
     'LIMB': ['MOUTH', 'LIMB'],
     'MOUTH': ['LIMB', 'MOUTH'],
   };
-  var recLim = 20;
+  var recLim = 10;
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", id);

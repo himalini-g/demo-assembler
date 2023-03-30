@@ -3,7 +3,6 @@ class Svg {
     constructor(element, activeLayer, layerInfo) {
         this.name = "svg"
         this.uniqueID = 1;
-        this.renderelems = {};
         this.element = element;
         this.tempElems = [];
         this.layerSelected = activeLayer;
@@ -15,6 +14,23 @@ class Svg {
             this.layers[layer.name] = {};
             this.layerColors[layer.name] = layer.color;
         });
+    }
+    changeElement(parentElement){
+        Object.entries(this.layers).forEach(([_, layer]) => {
+            Object.entries(layer).forEach(([_, line]) =>{
+                line.destroyParent(this.element.id);
+                line.addToParentElement(parentElement);
+            });
+        });
+        this.tempElems.forEach(elem =>{
+            elem.destroyParent(this.element.id);
+            elem.addToParentElement(parentElement);
+        });
+        Object.entries(this.text).forEach(([_, elem])=> {
+            elem.destroyParent(this.element.id);
+            elem.addToParentElement(parentElement);
+        });
+        this.element = parentElement;
     }
     clearLayer(layerName){
         var ids = Object.keys(this.layers[layerName]);
@@ -96,7 +112,7 @@ class Svg {
         if(pointIsRelative){
             relativePoint = point;
         } else{
-            relativePoint = relativeMousePosition(point,  this.element);
+            relativePoint = relativeMousePosition(point, this.element);
         }
         this.layers[this.layerSelected][lineID].appendPoint(relativePoint);
         return lineID;
@@ -107,10 +123,12 @@ class Svg {
     }
 
     moveLines(lines, vec){
-        lines.map(line => line.moveByVector(vec));
+        lines.map(line => {
+            line.moveByVector(vec)
+        });
         lines.forEach(line  => {
             if(this.genTextID(line.id) in this.text){
-                this.text[this.genTextID(id)].moveByVector(vec);
+                this.text[this.genTextID(line.id)].moveByVector(vec);
             }
         })
     }
@@ -144,57 +162,20 @@ class Svg {
         }, {distance: Infinity, line: null});
         return closestLine;
     }
-    generatePerp(lineID, point){
-        var relativePoint = relativeMousePosition(point, this.element);
-        const pickDir = {
-            average: null,
-            vector: null,
-            normals: null,
-            normalIndex: null,
-            length: null,
-            computeNormals(points){
-                var pointSum = {
-                    x: points[0].x + points[1].x, 
-                    y: points[0].y + points[1].y
-                }
-                var x = Math.abs(points[0].x - points[1].x)
-                var y = Math.abs(points[0].y - points[1].y)
-                this.length = Math.sqrt(x * x + y * y);
-                this.average = {
-                    x: pointSum.x / 2.0,
-                    y: pointSum.y / 2.0
-                };
-                this.vector = {
-                    x: points[1].x - points[0].x,
-                    y: points[1].y - points[0].y,
-                };
-                var normal1 = {
-                    x: (this.vector.y * -1) + this.average.x,
-                    y: this.vector.x  + this.average.y,
-                }
-                var normal2 = {
-                    x: this.vector.y + this.average.x,
-                    y: (this.vector.x * -1)  + this.average.y,
-                }
-                this.normals = [normal1, normal2];
-                return [this.average, this.normals, length]
-            },
-            setNormalToRetrieve(index){
-                this.normalIndex = index;
-            },
-            retrieveAverageNormalLength(){
-                return [this.average, this.normals[this.normalIndex], this.length];
-            },
+    computeAverage(lineID){
+        var points = this.getLine(lineID).points;
+        var pointSum = {
+            x: points[0].x + points[1].x, 
+            y: points[0].y + points[1].y
         }
-        var [_, normals] = pickDir.computeNormals(this.getLine(lineID).points);
-        var distNormal2 = dist2(relativePoint, normals[1]);
-        var distNormal1 = dist2(relativePoint, normals[0]);
-        if(distNormal1 < distNormal2){
-            pickDir.setNormalToRetrieve(0);
-            return pickDir;
-        }
-        pickDir.setNormalToRetrieve(1);
-        return pickDir;
+        var x = Math.abs(points[0].x - points[1].x)
+        var y = Math.abs(points[0].y - points[1].y)
+        const length = Math.sqrt(x * x + y * y);
+        const average = {
+            x: pointSum.x / 2.0,
+            y: pointSum.y / 2.0
+        }  
+        return [average, length];
     }
     deleteIDs(IDs){
         IDs.forEach(id =>{
@@ -288,10 +269,11 @@ class OutlineMode{
 }
 function relativeMousePosition(point, element){
     var parentRect = element.getBoundingClientRect();
-    return {
-        x: point.pageX - parentRect.left,
-        y: point.pageY - parentRect.top
+    var p = {
+        x: point.x - parentRect.left,
+        y: point.y - parentRect.top
     }
+    return p;
 }
 function downloadSVG(element=null, fileName=null){
     if(element == null){
@@ -310,7 +292,7 @@ function downloadSVG(element=null, fileName=null){
 } 
 
 
-class ConstructionMode{
+class ConstructionMode {
     constructor(svg){
         this.curLineID = null;
         this.svg = svg;
@@ -329,38 +311,29 @@ class ConstructionMode{
 class OrientLineMode{
     constructor(svg, selectpoints){
         this.svg = svg;
-     
         this.baseID = null;
-        this.orientDict = {};
         this.selectpoints = selectpoints;
         this.selectingPoints = false;
     }
     reComp(lineID){
-        if(!(lineID in this.orientDict)){
-            return;
-        }
-        const pickDir = this.orientDict[lineID];
-        pickDir.computeNormals(this.svg.getLine(lineID).points);
-        var [average, normal, length] = pickDir.retrieveAverageNormalLength();
-        this.svg.getLine(lineID).removePoint();
+        const [average, length] =  this.svg.computeAverage(lineID);
         this.svg.getLine(lineID).removePoint();
         var [b, text] = this.svg.getText(lineID);
         if(b){
             text.point = average;
             text.txt = Math.trunc(length).toString();
         }
-        
         this.svg.updateSvgPath(average, lineID, true);
-        this.svg.updateSvgPath(normal, lineID, true);
     }
     mouseDownHandler(e){
         // weird line edge cases
         if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
+            this.svg.deleteIDs([this.baseID]);
             this.baseID = null;
-            delete this.orientDict[this.baseID];
         }
+        
         this.selectingPoints = this.selectpoints.clickInPoint(e);
-       
+
         if(this.selectingPoints){
             this.selectpoints.mouseDownHandler(e);
             return;
@@ -370,34 +343,19 @@ class OrientLineMode{
             this.selectpoints.reset();
             this.baseID = this.svg.addLine(e);
             this.svg.updateSvgPath(e, this.baseID);
-            this.selectpoints.initSelection( this.baseID);
-        }
-        else if(this.baseID != null && this.svg.getLine(this.baseID).points.length <= 1){
-            this.svg.updateSvgPath(e, this.baseID);
-    
-        } 
-        else{
-            const pickDir = this.svg.generatePerp(this.baseID, e);
-            this.orientDict[this.baseID] = pickDir;
-            var [average, normal, length] = pickDir.retrieveAverageNormalLength();
-            this.svg.updateSvgPath(average, this.baseID, true);
-            this.svg.updateSvgPath(normal, this.baseID, true);
-            this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
-            this.baseID = null;
-        }
-       
+            this.selectpoints.initSelection(this.baseID);
+        }       
     }
     mouseMoveHandler(e){
  
         if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
             this.baseID = null;
-       
-            delete this.orientDict[this.baseID];
         }
         if(this.selectingPoints){
             this.selectpoints.mouseMoveHandler(e);
             return;
         }
+
         if(this.baseID != null){
             this.svg.getLine(this.baseID).removePoint();
             this.svg.updateSvgPath(e, this.baseID);
@@ -408,12 +366,24 @@ class OrientLineMode{
             this.selectpoints.mouseUpHandler();
             return;
         }
+        // edge case checking;
         if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
             this.baseID = null;
-            delete this.orientDict[this.baseID];
+            return;
+        } else if(this.baseID == null){
+            return;
         }
-        if(this.baseID != null ){
-            this.selectpoints.initSelection(this.baseID);
+
+        this.selectpoints.initSelection(this.baseID);  
+        if(this.svg.getLine(this.baseID).points.length < 2){
+            
+            this.svg.deleteIDs([this.baseID]);
+            this.baseID = null;
+        } else if(this.svg.getLine(this.baseID).points.length == 2){
+            var [average, length]  = this.svg.computeAverage(this.baseID);
+            this.svg.updateSvgPath(average, this.baseID, true);
+            this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
+            this.baseID = null;
         }
     }
 }
@@ -431,13 +401,12 @@ function setup(passedSVG=null){
     svg = new Svg(svgElement, LAYERSELECTED, layerInfo);
     if(passedSVG != null){
         svg = passedSVG;
-        svg.element = svgElement;
-        svg.reRender();
+        svg.changeElement(svgElement);
     }
-    selectpointsmode = new SelectPoints(svg, svgElement);
+    selectpointsmode = new SelectPoints(svg);
     var orientlinemode = new OrientLineMode(svg, selectpointsmode, svgElement);
     selectpointsmode.orientlinemode = orientlinemode;
-    select = new Select(svg, selectpointsmode, svgElement);
+    select = new Select(svg, selectpointsmode);
     layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
     var outlinemode = new OutlineMode(svg, selectpointsmode);
     var constructionmode = new ConstructionMode(svg);
@@ -453,30 +422,37 @@ function setup(passedSVG=null){
     eventMap[selectMode][outlineLayer] = select;
     eventMap[selectMode][orientLayer] = select;
     
-    svgElement.addEventListener("mousedown", function (e) {
+    const mouseDown = (e) => {
         pressed = true;
         eventMap[SETMODE][LAYERSELECTED].mouseDownHandler(e);
-        
-    });
-    
-    svgElement.addEventListener("mousemove", function (e) {
+    }
+    const mouseMove = (e) =>{
         if(pressed){
             eventMap[SETMODE][LAYERSELECTED].mouseMoveHandler(e);
         }
-    });
-    
-    svgElement.addEventListener("mouseup", function () {
+    }
+    const mouseUp = () =>{
         pressed = false;
         eventMap[SETMODE][LAYERSELECTED].mouseUpHandler();
         layerthumbnails.reRenderLayer(svg.layerSelected);
-  
-    });
-    svgElement.addEventListener("dblclick", function (e) {
+    }
+    
+    const doubleClick = (e) => {
         if(SETMODE == selectMode){
             select.doubleClickHandler(e);
         }
-        // Double-click detected
+    }
+    
+    svgElement.addEventListener("mousedown", mouseDown);
+    svgElement.addEventListener("mousemove", mouseMove);
+    svgElement.addEventListener("mouseup", mouseUp);
+    svgElement.addEventListener("dblclick", doubleClick);
+    $("#" + svgID).mouseleave(function () {
+        mouseUp()
     });
+    // $("#" + svgID).mouseenter(function (e) {
+    //     mouseDown(e)
+    // });
     $(document).keyup(function(e){
         if(e.key === "Backspace") {
             select.deleteSelected();
@@ -657,10 +633,10 @@ class Thumbnails{
         var thumbnailElement = document.getElementById(id);
         this.thumbnailDivs[thumbnailDIV.id] = thumbnailDIV;
         
-        svg.element = thumbnailElement;
+        svg.changeElement(thumbnailElement);
 
         this.thumbnails[thumbnailElement.id] = svg;
-        
+
 
         deleteButton.onclick = this.deleteDrawingLambda(thumbnailDIV,thumbnailElement);
         saveButton.onclick = this.downloadDrawingLambda(svg);
@@ -801,7 +777,6 @@ var lastScrolledTop = 0;
 $(document).mousemove(function(event) {
     captureMousePosition(event);
 })  
-
     $(window).scroll(function(event) {
         if(lastScrolledLeft != $(document).scrollLeft()){
             xMousePos -= lastScrolledLeft;

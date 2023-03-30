@@ -343,7 +343,6 @@ function intersect(fig1, fig2) {
         }
       }    
     }
-    //console.log("polygonate: " + JSON.stringify(polygons));
     return polygons;
   }
   
@@ -388,7 +387,6 @@ function intersect(fig1, fig2) {
         filtered.push(bigPolygons[i]);
       }
     }
-    //console.log("filtered: " + JSON.stringify(filtered));
     return filtered;
   }
   
