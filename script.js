@@ -231,7 +231,7 @@ class OutlineMode{
         this.svg = svg;
         this.selectpoints = selectpoints;
         this.selectingPoints = false;
-
+        this.errorcolor = "#FF0000"
     }
     mouseDownHandler(e){
         this.selectingPoints = this.selectpoints.clickInPoint(e);
@@ -256,6 +256,20 @@ class OutlineMode{
         this.svg.getLine(this.outlineID).removePoint();
         this.svg.updateSvgPath(e, this.outlineID);
        
+    }
+    errorCheck(){
+        var points = this.svg.getLine(this.outlineID).points;
+        var closePoint = this.svg.getLine(this.outlineID).closePoint;
+        if(closePoint == null){
+            console.error("outline does not have a close point");
+            return;
+        }
+        points.push(closePoint);
+        for(var i = 0; i < points.length - 1; i++){
+            var p1 = points[i];
+            var p2 = points[i + 1];
+            
+        }
     }
     mouseUpHandler(){
         if(this.selectingPoints){
@@ -622,8 +636,8 @@ class Thumbnails{
         var thumbnailDIV = makeDiv(id + "_container", svg.name, this.thumbnailDivClass);
         var deleteButton = makeButton(this.trashicon +  " delete");
         
-        var saveButton = makeButton(this.saveicon +  " download");
-        var loadButton = makeButton(this.editicon +  "edit");
+        var saveButton = makeButton(this.saveicon +  " download svg");
+        var loadButton = makeButton(this.editicon +  "edit tile");
         thumbnailDIV.appendChild(thumbnailElemNS);
         thumbnailDIV.appendChild(deleteButton);
         thumbnailDIV.appendChild(saveButton);
@@ -750,7 +764,7 @@ const layerInfo =
 [
     {
         name: outlineLayer,
-        color: "#FF0000",
+        color: "#0000FF",
     },
     {
         name: orientLayer,

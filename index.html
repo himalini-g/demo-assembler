@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script type="text/javascript" src="http://polyk.ivank.net/polyk.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script src="https://unpkg.com/avl"></script>
     <meta charset="utf-8" />
   </head>
   <body>
@@ -22,7 +23,7 @@
               <p>Some text in the Modal..</p>
             </div>
           </div> -->
-          <button onclick="reset()"> save drawing</button>
+          <button onclick="reset()"> save tile</button>
           <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
           <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
           </select>
@@ -46,14 +47,18 @@
         </div>
       </div>
     </div>
-    
+    <!-- <script src="polygonSelfIntersect/utils/index.js"></script>
+    <script src="polygonSelfIntersect/point.js"></script>
+    <script src="polygonSelfIntersect/sweepline.js"></script>
+    <script type="module" src="polygonSelfIntersect/findIntersections.js"></script> -->
+    <script src="line_intersect_line.js"></script>
+    <script src="math_utils.js"></script>
     <script src="objs.js"></script>
-    <script src="utils.js"></script>
     <script src="select.js"></script>
     <script src="assembler.js"></script>
     <script src="script.js"></script>
     <script src="solution.js"></script>
     <script src="instruction_modal.js"></script>
-    <script type="module" src="utils.js"></script>
+    <script type="module" src="math_utils.js"></script>
   </body>
 </html>
