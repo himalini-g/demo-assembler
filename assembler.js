@@ -1,4 +1,5 @@
 
+const debug = false;
 function draw(renderStack){
     var polyLines = [];
     for(var l = 0; l< renderStack.length; l++){
@@ -15,20 +16,22 @@ const P2ArrayToArray = arr => arr.reduce((acc, point)=> {
   return acc;
 }, []);
 class Assemblage{
-  constructor(drawingJSONS, recursiveLimit, attachments){
+  constructor(drawingJSONS, recursiveLimit, attachments, width, height){
+   
+    this.width = width;
+    this.height = height; 
     this.referenceDrawingJsons = drawingJSONS;
     this.recursiveLimit = recursiveLimit;
     this.attachments = attachments;
     this.drawingStack = [];
     this.renderStack = [];
-    this.debug = false;
 
   }
   deepCopies(){
     return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
   }
   shuffledDrawingIndexes(){
-    if(!this.debug){
+    if(!debug){
       return shuffleArray(this.referenceDrawingJsons.map((_, index)=>index));
     } else{
       return this.referenceDrawingJsons.map((_, index)=>index);
@@ -36,7 +39,7 @@ class Assemblage{
   }
   shuffledDeepCopies(){
     var drawings = this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
-    if(!this.debug){
+    if(!debug){
       return shuffleArray(drawings);
     } else {
       return drawings;
@@ -54,7 +57,7 @@ class Assemblage{
     return borders;
   }
   randomDrawing(){
-    if(!this.debug){
+    if(!debug){
       var randomReferenceJson = this.referenceDrawingJsons[randomInteger(0, this.referenceDrawingJsons.length)];
       return new Drawing(randomReferenceJson, this.attachments);
     } else{
@@ -65,7 +68,7 @@ class Assemblage{
   fitToCanvas(){
     var newLineList = this.renderStack.map(drawing => drawing.lines).flat(2);
     var bBox = get_bbox(newLineList);
-    var scalingFactor = Math.min(width / (bBox[1].x - bBox[0].x), height / (bBox[1].y - bBox[0].y));
+    var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
     for(var l = 0; l< this.renderStack.length; l++){
       var processingLamba = function (line) {
         return linePostProcessing(line, bBox[0].x, bBox[0].y, scalingFactor);
@@ -76,8 +79,8 @@ class Assemblage{
   }
 }
 
-function makeStack(drawingJSONs, recLim, attachments) {
-  let assemblage = new Assemblage(drawingJSONs, recLim, attachments);
+function makeStack(drawingJSONs, recLim, attachments, width, height) {
+  let assemblage = new Assemblage(drawingJSONs, recLim, attachments, width, height);
   //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
   let drawingObj = assemblage.randomDrawing();
   assemblage.addDrawingToAssemblage(drawingObj);
@@ -212,12 +215,16 @@ class Drawing {
     .map(line => line.index);
   }
   getLines(){
-    var orientLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.opening)));
-    var vectorLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.vector)));
+    
     var retLines = JSON.parse(JSON.stringify(this.lines));
-    retLines.push(...orientLines);
-    retLines.push(...vectorLines);
-    retLines.push(this.polygonBorder);
+    // var retLines = JSON.parse(JSON.stringify(this.lines));
+    if(debug){
+      var orientLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.opening)));
+      var vectorLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.vector)));
+      retLines.push(...orientLines);
+      retLines.push(...vectorLines);
+      retLines.push(this.polygonBorder);
+    }
     return retLines;
   }
 
@@ -337,18 +344,18 @@ function draw_svg(element, polylines){
   return;
 }
 
-function renderDebug(renderStack){
-  var container = document.getElementById("assembler-svg-container");
-  container.innerHTML = ""
-  var element = SVGElement(width, height, width, height, "svg", id);
-  container.appendChild(element);
-  var polyLines = draw(renderStack);
-  draw_svg(element, polyLines);
-}
+// function renderDebug(renderStack){
+//   var container = document.getElementById("assembler-svg-container");
+//   container.innerHTML = ""
+//   var element = SVGElement(width, height, width, height, "svg", id);
+//   container.appendChild(element);
+//   var polyLines = draw(renderStack);
+//   draw_svg(element, polyLines);
+// }
 
 var id = "assembler-svg";
 
-function assemblerSetup(drawings){
+function assemblerSetup(drawings, width, height){
   const attachments = {
     'LIMB': ['MOUTH', 'LIMB'],
     'MOUTH': ['LIMB', 'MOUTH'],
@@ -358,13 +365,14 @@ function assemblerSetup(drawings){
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", id);
   container.appendChild(element);
-  var toRender = makeStack(drawings, recLim, attachments);
+  var toRender = makeStack(drawings, recLim, attachments, width, height);
 
   var polyLines = draw(toRender);
   draw_svg(element, polyLines, width, height, id);
   return element;
 }
 function assemblerStart(width, height){
+
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", id);

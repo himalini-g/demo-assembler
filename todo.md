@@ -2,13 +2,15 @@
 - [x] text from the orientation lines is not deleting
 - [x] fix the cursor interaction to work globally and treat exiting box as mouse up
 - [ ] when changing layers, change the mode to drawd
-- [ ] select does not work on perfectly vertical and horizontal lines. Also does not work on lines with dimension zero (points)
+- [x] select does not work on perfectly vertical and horizontal lines. Also does not work on lines with dimension zero (points)
 - [ ] history stack exists but does not work too well
 - [ ] delete malformed orientation line input on change
-- [ ] gate the save drawing feature to ensure that the orientation lines are properly formed
+- [x] gate the save drawing feature to ensure that the orientation lines are properly formed
 - [x] some kind of graphical error indication that they are malformed
 - [ ] add error checking on generation
 - [ ] no graphical indication when the assembler is loading
+- [x] make select better. ATM it 
+- [ ] make a working history stack. Make it a member of the svg class
 ## todo
 - [x] get the selection hooked to the double click
 - [x] make exceptions for the orientation lines
@@ -19,7 +21,7 @@
 - [x] make layers with thumbnails
 - [x] convert draw select to sidebar icons
 - [x] add select to points level
-- [ ] brainstorm connections interface
+- [x] brainstorm connections interface
 - [x] have move points on when drawing on outline and orientation lines
 - [ ] autosave to session storage
 - [x] make it impossible to draw orientation lines in the border 
@@ -27,7 +29,7 @@
 - [ ] add labels to orient lines (gated)
 - [x] create an instructional tutorial
 - [ ] demo tile set
-- [ ] error modal
+- [x] error modal
 ## todo big
 - [x] make a global file system
 - [ ] enable a history stack

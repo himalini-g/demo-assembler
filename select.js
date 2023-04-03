@@ -14,6 +14,9 @@ class SelectPoints{
             x:0,
             y:0
         };
+        this.compliance = () => true;
+        this.orientlinemode = null;
+        this.outlinemode = null;
     }
     reset(){
         this.lineID = null;
@@ -76,6 +79,9 @@ class SelectPoints{
         if(this.svg.layerSelected == this.orientlinemode.name){
             this.orientlinemode.reComp(this.lineID);
         }
+        if(this.svg.layerSelected == this.outlinemode.name){
+            this.outlinemode.addTextToLastPoint();
+        }
 
         this.svg.getLine(this.lineID).reRender();
         var [b, text] = this.svg.getText(this.lineID);
@@ -83,6 +89,7 @@ class SelectPoints{
             text.reRender()
         }
         circle.reRender();
+        this.compliance();
     }
     mouseUpHandler(){
         this.circleTarget = null;
@@ -118,7 +125,7 @@ class Select{
         this.selectionBox.setAttribute('stroke','gray')
         this.selectionBox.setAttribute('stroke-width', 1)
         this.selectionBox.setAttribute('stroke-dasharray', 4);
-        this.element.appendChild(this.selectionBox);
+        
         this.selected = [];
         
         this.moveVec = {
@@ -144,7 +151,7 @@ class Select{
         };
 
         this.selectingPoints = false;
-        this.compliance = null;
+        this.compliance = () => true;
     }
     isSelected(){
         return this.selected.length > 0;
@@ -160,6 +167,7 @@ class Select{
         
     }
     mouseDownHandler(e){
+        this.element.appendChild(this.selectionBox);
         if(this.selectingPoints){
             var inPoint = this.selectpoints.clickInPoint(e);
             if(!inPoint){
@@ -169,7 +177,6 @@ class Select{
                 this.startSelection(e);
             }
             this.selectpoints.mouseDownHandler(e, this.selected[0]);
-            console.log("hello")
             this.compliance();
         } else {
              // click is in the selected boxes
@@ -186,13 +193,14 @@ class Select{
     mouseMoveHandler(e){
         if(this.selectingPoints){
             this.selectpoints.mouseMoveHandler(e);
-            this.compliance();
+            
         } else {
             if(this.clickedInSelection){
                 this.updateSelectionBox(e);
                 this.updateMoveVec(e);
                 this.svg.moveLines(this.selected, this.moveVec);
                 this.svg.reRender();
+                this.compliance();
             } else {
                 this.updateSelectionBox(e);
                 this.setSelectionBox();

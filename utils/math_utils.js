@@ -214,7 +214,26 @@ function get_bbox(points){
     }
     return [{x:xmin,y:ymin},{x:xmax,y:ymax}];
   }
+function pointInPolygon(point, vs) {
+    // https://stackoverflow.com/questions/22521982/check-if-point-is-inside-a-polygon
+    // https://github.com/substack/point-in-polygon
+    // ray-casting algorithm based on
+    // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
 
+    var x = point.x, y = point.y;
+
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i].x, yi = vs[i].y;
+        var xj = vs[j].x, yj = vs[j].y;
+        
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+};
 if (typeof(module) !== "undefined") {
 	module.exports.sqr = sqr;
     module.exports.dist2 = dist2;
@@ -228,6 +247,7 @@ if (typeof(module) !== "undefined") {
     module.exports.isect_circ_line = isect_circ_line;
     module.exports.scaleLine =scaleLine;
     module.exports.translateLine =translateLine;
-    module.exports.dist =dist;
+    module.exports.dist = dist;
+    module.exports.pointInPolygon = pointInPolygon;
 }
 

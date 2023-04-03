@@ -5,17 +5,49 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script type="text/javascript" src="http://polyk.ivank.net/polyk.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
     <meta charset="utf-8" />
   </head>
   <body>
     <div>
+     <!-- Trigger/Open The Modal -->
+      <button id="hidden-modal-button" style="display: none;">Open Modal</button>
+      <!-- The Modal -->
+      <div id="error-modal" class="modal">
+        <!-- Modal content -->
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <p id="modal-text">Some text in the Modal..</p>
+        </div>
+
+      </div>
+      
+      </div>
       <div class="header"> Make Tile </div>
       <div id="drawing-ui-container" class="drawing-container">
         <div id="drawing-panel" class="drawing-panel">
           <input type="button" value="instructions" onclick="window.open('https://docs.google.com/document/d/10cBzVxWtj3KSDs_mG5ULo_yI_5gars03324DIMb4k_o/edit?usp=sharing')" />
-          <button onclick="reset()"> save tile</button>
+          <button onclick="saveTile()"> save tile</button>
           <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
           <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
+          <button id="add-label">manage labels</button>
+          <!-- The Modal -->
+          <div id="enter-label" class="modal">
+            <!-- Modal content -->
+            <div class="modal-content">
+              <span id="modal-text-close">&times;</span>
+              <div id="modal-text">
+                Add new label:
+                <input type="text" maxlength="512" id="label-text-input"/>
+                <button onclick="addLabel()">add label</button>
+                <div>Active Labels:</div>
+                <div id="label-display">
+                 
+                </div>
+              </div>
+              
+            </div>
+          </div>
           </select>
         </div>
         <div id="svg-container" class="svg-container">
@@ -29,28 +61,26 @@
       <div id="generating-tool-panel" class="drawing-panel">
         <button onclick="rerenderAssemblage()"> <i class="fa fa-refresh" aria-hidden="true"></i> regenerate</button>
         <button onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
+        <button onclick="downloadProject()">  <i class="fa fa-floppy-o" aria-hidden="true"></i> download project</button>
+        <button onclick="loadProject()">  <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
       </div>
       <div id="assembler-svg-container" class="svg-container">
       </div>
-      <div id="thumbnail-container">
+      <div id="thumbnail-container" class="thumbnail-panel">
         <div id="thumbnails">
         </div>
       </div>
     </div>
-    <!-- <script src="polygonSelfIntersect/utils/index.js"></script>
-    <script src="polygonSelfIntersect/point.js"></script>
-    <script src="polygonSelfIntersect/sweepline.js"></script>
-    <script type="module" src="polygonSelfIntersect/findIntersections.js"></script> -->
-  
     <script src="utils/line_intersect_line.js"></script>
     <script src="utils/math_utils.js"></script>
     <script src="utils/solution.js"></script>
     <script src="objs.js"></script>
+    <script src ="error_modal.js"></script>
+    <script src="label_modal.js"></script>
 
     <script src="select.js"></script>
     <script src="assembler.js"></script>
     <script src = "tile_making.js"></script>
     <script src="script.js"></script>
-    <script src="instruction_modal.js"></script>
   </body>
 </html>

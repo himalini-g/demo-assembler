@@ -7,6 +7,7 @@ class Svg {
         this.layerSelected = activeLayer;
         this.layers = {};
         this.text = {};
+		this.labels = {};
         this.layerColors = {};
         this.layerInfo = layerInfo;
         this.layerInfo.forEach(layer => {
@@ -18,6 +19,47 @@ class Svg {
         this.errors = {};
         this.invalidCSS = invalidCSS;
     }
+	canExport(){
+		var b = true;
+		var errorString = "";
+		var outlineIDs = Object.entries(this.layers[this.outlineLayerName]);
+		var errorDict = {}
+		if(outlineIDs.length == 0){
+            errorString += `<p> There's no boundary for this tile!
+			Please select the 'border' layer and draw a boundary</p> `;
+			b = false;
+        };
+		var orientIDs = Object.entries(this.layers[this.orientLayerName]);
+		if(orientIDs.length == 0){
+            errorString +=  `<p> There's no orientation annotations for 
+			this tile! Please select the 'orient' layer and draw at least
+			one orientation line </p> `;
+			b = false;
+        };
+		var errors =  Object.entries(this.errors);
+		if(errors.length > 0){
+			errorString += `<ul><p> The following annotation lines have an issue: <p>`
+		}
+		errors.forEach(([id, issue]) =>{
+			errorDict[issue] = null;
+			b = false;
+		});
+		Object.entries(errorDict).map(([errorStr, _])=>{
+			errorString += errorStr;
+		})
+		if(errors.length > 0){
+			errorString += `</ul>`
+
+		}
+		return [b, errorString];
+	}
+	getOutlineID(){
+		var outlineIDs = Object.entries(this.layers[this.outlineLayerName]);
+        if(outlineIDs.length == 0){
+            return null;
+        }
+		return outlineIDs[0][0];
+	}
     errorCheckOrient(){
         var outlineIDs = Object.entries(this.layers[this.outlineLayerName]);
         if(outlineIDs.length == 0){
@@ -45,7 +87,9 @@ class Svg {
             var newError = false;
             outlineLineSegments.forEach(outlineSegment =>{
                 if(doIntersect(orientLine.points[0],orientLine.points[1],  outlineSegment[0], outlineSegment[1])){
-                    this.errors[orientLine.id] = "uh oh, your orientation line is inside the boundary for the drawing. Please move it to be external";
+                    this.errors[orientLine.id] = `<li> The orientation lines cannot
+					be inside the the border for the tile.
+					Please adjust the orientation line or the border with the 'select' tool. </li> `;
                     orientLine.addCSS(this.invalidCSS)
                     newError = true;
                 }
@@ -66,6 +110,7 @@ class Svg {
             return;
         }
         var outline = outlineIDs[0][1];
+		const outlineID = outlineIDs[0][0];
 
         var points = JSON.parse(JSON.stringify(outline.points));
         var closePoint = outline.closePoint;
@@ -88,29 +133,46 @@ class Svg {
                     const l2 = lineSegments[j];
                     if(doIntersect(l1[0], l1[1], l2[0], l2[1])){
                         outline.addCSS(this.invalidCSS)
+						this.errors[outlineID] =  `<li> The border cannot intersect itself. 
+						Please adjust the border with the 'select' tool.  </li> `;
                         return;
                     }
                 }
             }
         }
-        outline.removeCSS(this.invalidCSS)
+        outline.removeCSS(this.invalidCSS);
+		if(outlineID in this.errors){
+			delete this.errors[outlineID];
+		}
     }
-    changeElement(parentElement){
+	prepareToSave(){
+		Object.entries(this.layers).forEach(([_, layer]) => {
+            Object.entries(layer).forEach(([_, line]) =>{
+                line.destroy();
+            });
+        });
+        this.tempElems.forEach(elem =>{
+            elem.destroy();
+        });
+		this.tempElems = [];
+        Object.entries(this.text).forEach(([_, elem])=> {
+            elem.destroy();
+        });
+		return this.errors;
+		
+	}
+    addNewElement(parentElement){
         Object.entries(this.layers).forEach(([_, layer]) => {
             Object.entries(layer).forEach(([_, line]) =>{
-                line.destroyParent(this.element.id);
                 line.addToParentElement(parentElement);
             });
         });
         this.tempElems.forEach(elem =>{
-            elem.destroyParent(this.element.id);
             elem.addToParentElement(parentElement);
         });
         Object.entries(this.text).forEach(([_, elem])=> {
-            elem.destroyParent(this.element.id);
             elem.addToParentElement(parentElement);
         });
-        this.element = parentElement;
     }
     clearLayer(layerName){
         var ids = Object.keys(this.layers[layerName]);
@@ -125,7 +187,6 @@ class Svg {
  
     getLayer(layerName){
         return Object.entries(this.layers[layerName]).map(([_, line]) => line);
-
     }
     addText(point, text, pointIsRelative=false, lineID){
         var color = this.layerColors[this.layerSelected];
@@ -138,7 +199,7 @@ class Svg {
         var textObj = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
         textObj.addToParentElement(this.element);
         this.text[textObj.id] = textObj;
-        return textObj.id;
+        return textObj;
     }
     addLine(point, pointIsRelative=false, closed=false){
         var color = this.layerColors[this.layerSelected];
@@ -279,12 +340,13 @@ class Svg {
         return false;
     }
    
-    fromJSON(jsonObj){
+    fromJSON(jsonObj){        
         this.name = jsonObj.name
         this.uniqueID = jsonObj.uniqueID 
         this.tempElems = [];
         this.layers = {};
         this.text = {};
+		this.layerColors = {};
         this.layerInfo = jsonObj.layerInfo;
         this.layerInfo.forEach(layer => {
             this.layers[layer.name] = {};
@@ -295,29 +357,45 @@ class Svg {
                 var line = new Line("");
                 line.jsonToObj(lineJSON);
                 this.layers[layerKey][lineID] = line;
-                this.element.appendChild(line.path);
+
             });
         });
         Object.entries(jsonObj.text).forEach(([textID, textJSON]) =>{
             var text = new TextSVG(textJSON.point, "", textJSON.text);
             this.text[textID] = text;
             text.fromJSON(textJSON);
-            this.element.appendChild(text.text);
-        })
+
+        });
+
+		this.layerSelected = jsonObj.layerSelected;
+        this.outlineLayerName = jsonObj.outlineLayerName;
+        this.orientLayerName =jsonObj.orientLayerName; 
+		this.errors = jsonObj.errors;
+		this.invalidCSS = jsonObj.invalidCSS;
     }
     
 }
 
 class OutlineMode{
     constructor(svg, selectpoints, outlineLayer){
-        this.outlineID = null;
-        this.layerName = outlineLayer;
+        this.name = outlineLayer;
         this.svg = svg;
         this.selectpoints = selectpoints;
         this.selectingPoints = false;
         this.errorcolor = "#FF0000"
         this.error = false;
+		this.compliance = () => true;
+		this.text = null
     }
+	addTextToLastPoint(){
+		if(this.text !== null){
+			this.text.destroy();
+		}
+		// constructor(point, ID, txt, fill="#0000ff")
+		const outlineID = this.svg.getOutlineID();
+		var points = this.svg.getLine(outlineID).points;
+		this.text = this.svg.addText(points[points.length - 1], "last point", outlineID);
+	}
     mouseDownHandler(e){
         this.selectingPoints = this.selectpoints.clickInPoint(e);
         if(this.selectingPoints){
@@ -325,12 +403,13 @@ class OutlineMode{
             return;
         }
 
-        if(!this.svg.checkMembership(this.outlineID)){
-            this.outlineID = this.svg.addLine(e, false, true);
+        if(this.svg.getOutlineID() === null){
+            this.svg.addLine(e, false, true);
             this.selectpoints.reset();
-            this.selectpoints.initSelection( this.outlineID);
+            this.selectpoints.initSelection(this.svg.getOutlineID() );
         }
-        this.svg.updateSvgPath(e, this.outlineID);
+        this.svg.updateSvgPath(e, this.svg.getOutlineID());
+		this.addTextToLastPoint();
     }
     mouseMoveHandler(e){
         if(this.selectingPoints){
@@ -339,9 +418,11 @@ class OutlineMode{
             return;
         }
         
-        this.svg.getLine(this.outlineID).removePoint();
-        this.svg.updateSvgPath(e, this.outlineID);
+        this.svg.getLine(this.svg.getOutlineID()).removePoint();
+        this.svg.updateSvgPath(e, this.svg.getOutlineID());
+		this.compliance();
         this.svg.errorCheckOutline();
+		this.addTextToLastPoint();
         
        
     }
@@ -350,8 +431,8 @@ class OutlineMode{
             this.selectpoints.mouseUpHandler();
             return;
         }
-        if(this.svg.checkMembership(this.outlineID)){
-            this.selectpoints.initSelection(this.outlineID);
+        if(this.svg.getOutlineID() !== null){
+            this.selectpoints.initSelection(this.svg.getOutlineID());
         }
     }
 }
@@ -399,10 +480,12 @@ class ConstructionMode {
 class OrientLineMode{
     constructor(svg, selectpoints, name){
 		this.name = name;
+		console.log(name);
         this.svg = svg;
         this.baseID = null;
         this.selectpoints = selectpoints;
         this.selectingPoints = false;
+		this.compliance = () => true;
     }
     reComp(lineID){
         const [average, length] =  this.svg.computeAverage(lineID);
@@ -413,6 +496,7 @@ class OrientLineMode{
             text.txt = Math.trunc(length).toString();
         }
         this.svg.updateSvgPath(average, lineID, true);
+		this.compliance();
     }
     mouseDownHandler(e){
         // weird line edge cases
@@ -433,6 +517,7 @@ class OrientLineMode{
             this.baseID = this.svg.addLine(e);
             this.svg.updateSvgPath(e, this.baseID);
             this.selectpoints.initSelection(this.baseID);
+			this.compliance();
         }       
     }
     mouseMoveHandler(e){
@@ -448,6 +533,7 @@ class OrientLineMode{
         if(this.baseID != null){
             this.svg.getLine(this.baseID).removePoint();
             this.svg.updateSvgPath(e, this.baseID);
+			this.compliance();
         }
     }
     mouseUpHandler(){
@@ -471,8 +557,10 @@ class OrientLineMode{
         } else if(this.svg.getLine(this.baseID).points.length == 2){
             var [average, length]  = this.svg.computeAverage(this.baseID);
             this.svg.updateSvgPath(average, this.baseID, true);
+			
             this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
             this.baseID = null;
+			this.compliance();
         }
     }
 }

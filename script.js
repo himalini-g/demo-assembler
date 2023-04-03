@@ -1,339 +1,89 @@
-class GlobalState{
-    constructor(){
-        this.tileCounter = 0;
-        this.width = 800;
-        this.height = 600;
-        this.thumbnailHeight = Math.ceil(this.height / 4);
-        this.thumbnailWidth = Math.ceil(this.width / 4);
-        this.thumbnailDivClass = "thumbnail-container"
-        this.thumbnailDivID = "thumbnail-container"
-        this.selectedCSS = "selected-element" 
-        this.layerDivID = "layer-container"
-        this.svgContainerId = "svg-container"
-        this.svgID = "svgElement";
-        this.svgClass = "svg";
-        this.drawMode = "draw";
-        this.drawModeButtonID = "draw-button";
-        this.selectMode = "select";
-        this.selectModeButtonID = "select-button";
-        this.thumbnailDivs = {};
+function setup(passedSVG=null){
+    svgElement = SVGElement(width, height, width, height, svgClass, svgID);
+    var svgContainer = document.getElementById("svg-container");
+    
+    svgContainer.innerHTML = "";
+    svgContainer.appendChild(svgElement);
+    mode = document.getElementById("mode");
 
-        this.SETMODE = this.drawMode;
-        this.modeInfo = [
-            {
-                modeName: this.drawMode,
-                modeButtonDivID: this.drawModeButtonID
-            },
-            {
-                modeName: this.selectMode,
-                modeButtonDivID: this.selectModeButtonID
-            },
-        ]
-
-        this.outlineLayer = "border";
-        this.orientLayer = "orient";
-        this.constructionLayer = "construction";
-        this.constructionmode = null;
-        this.outlinemode = null;
-
-
-        this.pressed = false;
-        
-        this.LAYERSELECTED = this.constructionLayer;
-
-
-
-
-        this.trashicon = `<i class="fa fa-trash" aria-hidden="true"></i>`
-        this.clearicon = `<i class="fa fa-times" aria-hidden="true"></i>`
-        this.savefileicon = ` <i class="fa fa-download" aria-hidden="true"></i> `
-        this.editicon = `<i class="fa fa-pencil" aria-hidden="true"></i> `
-        this.sessionStorageKey = "project"
-        this.invalidCSS = "invalid"
-        this.svgElement = null;
-        this.svg = null;
-        this.select = null;
-        this.layerthumbnails = null;
-        this.selectpointsmode = null;
-        this.orientlinemode = null;
-        this.select = null;
-
-        // TODO: deal with
-        this.assemblerElement = assemblerStart(this.width, this.height);
-        this.layerInfo = 
-        [
-            {
-                name: this.outlineLayer,
-                color: "#A000F0",
-            },
-            {
-                name: this.orientLayer,
-                color: "#00FF00",
-            },
-            {
-                name: this.constructionLayer,
-                color: "#000000",
-            }
-        ]
-        this.eventMap = {}
-        this.layerElements = {};
-        this.layerDivElements= {};
-        this.modeButtons = {};
-        this.modeEventListener = {};
-
-
-        this.tiles = {};
-        this.tileSVGID = 0;
-
-        this.downloadProjectButton;
-
+    svg = new Svg(svgElement, "tile_" + tileCounter.toString(),  LAYERSELECTED, layerInfo, outlineLayer, orientLayer ,invalidCSS);
+    if(passedSVG != null){
+        svg = passedSVG;
+        svg.prepareToSave();
+        svg.addNewElement(svgElement);
+        svg.element = svgElement;
     }
-    bindEventHandlers(){
-        this.eventMap[this.drawMode] = {};
-        this.eventMap[this.selectMode] = {};
-        this.eventMap[this.drawMode][this.constructionLayer] = this.constructionmode;
-        this.eventMap[this.drawMode][this.outlineLayer] = this.outlinemode;
-        this.eventMap[this.drawMode][this.orientLayer] = this.orientlinemode;
-        this.eventMap[this.selectMode][this.constructionLayer] = this.select;
-        this.eventMap[this.selectMode][this.outlineLayer] = this.select;
-        this.eventMap[this.selectMode][this.orientLayer] = this.select;
-        
-        this.mouseDown = (e) => {
-            this.pressed = true;
-            this.eventMap[this.SETMODE][this.LAYERSELECTED].mouseDownHandler(e);
+    selectpointsmode = new SelectPoints(svg);
+    var orientlinemode = new OrientLineMode(svg, selectpointsmode, orientLayer);
+    selectpointsmode.orientlinemode = orientlinemode;
+   
+    select = new Select(svg, selectpointsmode);
+    
+
+    layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
+    var outlinemode = new OutlineMode(svg, selectpointsmode, outlineLayer);
+    selectpointsmode.outlinemode = outlinemode;
+    
+    const compliance = () => {
+        svg.errorCheckOutline();
+        svg.errorCheckOrient();
+    }
+
+    select.compliance = compliance;
+    outlinemode.compliance = compliance;
+    selectpointsmode.compliance = compliance;
+    orientlinemode.compliance = compliance;
+    var constructionmode = new ConstructionMode(svg);
+    var eventMap = {};
+
+
+    eventMap[drawMode] = {};
+    eventMap[selectMode] = {};
+    eventMap[drawMode][constructionLayer] = constructionmode;
+    eventMap[drawMode][outlineLayer] = outlinemode;
+    eventMap[drawMode][orientLayer] = orientlinemode;
+    eventMap[selectMode][constructionLayer] = select;
+    eventMap[selectMode][outlineLayer] = select;
+    eventMap[selectMode][orientLayer] = select;
+    
+    const mouseDown = (e) => {
+        pressed = true;
+        eventMap[SETMODE][LAYERSELECTED].mouseDownHandler(e);
+    }
+    const mouseMove = (e) =>{
+        if(pressed){
+            eventMap[SETMODE][LAYERSELECTED].mouseMoveHandler(e);
         }
-        this.mouseMove = (e) =>{
-            if(this.pressed){
-                this.eventMap[this.SETMODE][this.LAYERSELECTED].mouseMoveHandler(e);
-            }
+    }
+    const mouseUp = () =>{
+        pressed = false;
+        eventMap[SETMODE][LAYERSELECTED].mouseUpHandler();
+        layerthumbnails.reRenderLayer(svg.layerSelected);
+    }
+    
+    const doubleClick = (e) => {
+        if(SETMODE == selectMode){
+            select.doubleClickHandler(e);
         }
-        this.mouseUp = () =>{
-            this.pressed = false;
-            this.eventMap[this.SETMODE][this.LAYERSELECTED].mouseUpHandler();
-            this.reRenderLayer(this.svg.layerSelected);
+    }
+    
+    svgElement.addEventListener("mousedown", mouseDown);
+    svgElement.addEventListener("mousemove", mouseMove);
+    svgElement.addEventListener("mouseup", mouseUp);
+    svgElement.addEventListener("dblclick", doubleClick);
+    $("#" + svgID).mouseleave(function () {
+        mouseUp()
+    });
+    
+    $(document).keyup(function(e){
+        if(e.key === "Backspace") {
+            select.deleteSelected();
         }
-        
-        this.doubleClick = (e) => {
-            if(this.SETMODE == this.selectMode){
-                this.select.doubleClickHandler(e);
-            }
-        }
-        this.mouseLeave = () => {
-            this.mouseUp();
-        }
-        this.keyUp = (e) => {
-            if(e.key === "Backspace") {
-                this.select.deleteSelected();
-            }
-        }
-
-        this.svgElement.addEventListener("mousedown", this.mouseDown);
-        this.svgElement.addEventListener("mousemove", this.mouseMove);
-        this.svgElement.addEventListener("mouseup", this.mouseUp);
-        this.svgElement.addEventListener("dblclick", this.doubleClick);
-        $("#" + this.svgID).mouseleave(this.mouseLeave);
-        $(document).keyup(this.keyUp);
-        
-    }
-    newTileElement(){
-        this.svgElement = SVGElement(this.width ,this.height ,this.width ,this.height ,this.svgClass ,this.svgID);
-        var svgContainer = document.getElementById(this.svgContainerId);
-        svgContainer.innerHTML = "";
-        svgContainer.appendChild(this.svgElement);
-  
-
-        this.svg = new Svg(this.svgElement , "tile_" + this.tileCounter.toString(),  this.LAYERSELECTED, this.layerInfo, this.outlineLayer, this.orientLayer ,this.invalidCSS);
-        
-
-    }
-    initEditingTile(tile=null){
-        if(tile == null){
-            this.newTileElement();
-        }
-        this.selectpointsmode = new SelectPoints(this.svg);
-        this.orientlinemode = new OrientLineMode(this.svg, this.selectpointsmode, this.svgElement, this.orientLayer);
-        this.constructionmode = new ConstructionMode(this.svg);
-        this.selectpointsmode.orientlinemode = this.orientlinemode;
-        this.select = new Select(this.svg, this.selectpointsmode);
-        this.outlinemode = new OutlineMode(this.svg, this.selectpointsmode, this.outlineLayer);
-        const compliance = () => {
-            this.svg.errorCheckOutline();
-            this.svg.errorCheckOrient();
-        }
-
-        this.select.compliance = compliance;
-        this.bindEventHandlers();
-        this.generateWorkingTileUI();
-    }
-    generateWorkingTileUI(){
-        var layerDivElement =  document.getElementById(this.layerDivID);
-      
-        this.modeInfo.forEach(mode =>{
-            var modeButton = document.getElementById(mode.modeButtonDivID);
-            this.modeButtons[mode.modeName] = modeButton;
-            var modeEventListener = this.changeModeLambda(mode.modeName,modeButton);
-            modeButton.onclick = modeEventListener;
-
-        })
-        this.layerInfo.forEach(layer => {
-            var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbnailWidth, this.thumbnailHeight, "svg", layer.name);
-
-            var thumbnailDIV = makeDiv(thumbnailElemNS.id + "_container", layer.name, this.thumbnailDivClass);
-            var clearButton = makeButton(this.clearicon + " clear layer");
-
-            thumbnailDIV.appendChild(thumbnailElemNS);
-            thumbnailDIV.appendChild(clearButton);
-            layerDivElement.appendChild(thumbnailDIV);
-
-            this.layerElements[layer.name] = thumbnailElemNS;
-            this.layerDivElements[layer.name] = thumbnailDIV;
-            thumbnailDIV.addEventListener("mousedown", this.changeLayerLambda(layer.name, thumbnailDIV ), false, );
-            clearButton.onclick = this.clearLayerLambda(layer.name);
-
-        });
-
-        this.downloadProjectButton =  makeButton("project save");
-        this.downloadProjectButton.onclick = this.downloadProjectLambda(); 
-    }
-    changeModeLambda(modeName, modeButton){
-        const changeMode = e =>{
-            Object.entries(this.modeButtons).forEach(([_, div]) =>div.classList.remove(this.selectedCSS))
-            modeButton.classList.add(this.selectedCSS);
-            this.select.resetSelection();
-            this.SETMODE = modeName;
-
-        }
-        return changeMode;
-    }
-    changeLayerLambda(name, thumbnailDIV ){
-        const changeSVGLayer = e =>{
-            this.select.resetSelection();
-            this.LAYERSELECTED = name;
-            Object.entries(this.layerDivElements).forEach(([_, div]) => div.classList.remove(this.selectedCSS))
-            thumbnailDIV.classList.add(this.selectedCSS);
-            this.svg.layerSelected = name;
-        }
-        return changeSVGLayer;
-    }
-    clearLayerLambda(name){
-        const clearSVGLayer = (e) => {
-            this.svg.clearLayer(name);
-            this.svg.reRender();
-            this.reRenderLayer(name);
-        };
-        return clearSVGLayer
-    }
-    reRenderLayer(layerName){
-        var lines = this.svg.getLayer(layerName);
-        var thumbnailElement = this.layerElements[this.svg.layerSelected]
-        lines.forEach(line => {
-            line.addToParentElement(thumbnailElement);
-        });
-    }
-    loadFromSessionStorage(){
-        var project = JSON.parse(sessionStorage.getItem(this.sessionStorageKey));
-        Object.entries(project).forEach(([key, svgJSON], index) => {
-            var svgElement = SVGElement(width, height, width, height, "svg", index.toString());
-            var svgClass = new Svg(svgElement,  LAYERSELECTED, layerInfo);
-            svgClass.fromJSON(svgJSON)
-            this.addThumbnail(svgClass);
-        })
-        this.tileSetRerender();
-
-    }
-    addThumbnail(){
-        this.tileSVGID += 1;
-        var id = this.tileSVGID.toString() + "_thumbnail";
-        var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbnailWidth, this.thumbnailHeight, "svg", id);
-        var thumbnailDIV = makeDiv(id + "_container", this.svg.name, this.thumbnailDivClass);
-        var deleteButton = makeButton(this.trashicon +  " delete");
-        
-        var saveButton = makeButton(this.savefileicon +  " download svg");
-        var loadButton = makeButton(this.editicon +  "edit tile");
-        thumbnailDIV.appendChild(thumbnailElemNS);
-        thumbnailDIV.appendChild(deleteButton);
-        thumbnailDIV.appendChild(saveButton);
-        thumbnailDIV.appendChild(loadButton);
-
-        $("#" + this.thumbnailDivID).append(thumbnailDIV);
-        var thumbnailElement = document.getElementById(id);
-        this.thumbnailDivs[thumbnailDIV.id] = thumbnailDIV;
-        
-        this.svg.changeElement(thumbnailElement);
-
-        this.tiles[thumbnailElement.id] = this.svg;
-
-
-        deleteButton.onclick = this.deleteDrawingLambda(thumbnailDIV,thumbnailElement);
-        saveButton.onclick = this.downloadDrawingLambda(this.svg);
-        loadButton.onclick = this.loadDrawingLambda(thumbnailDIV,thumbnailElement, this.svg);
-    }
-    loadDrawingLambda(thumbnailDIV,thumbnailElement, svg){
-        const svgDelete = this.deleteDrawingLambda(thumbnailDIV, thumbnailElement);
-        const svgEdit = this.editDrawingLambda(svg);
-        const svgLoad = (e) => {
-            this.resetLambda();
-            svgDelete();
-            svgEdit();
-        }
-        return svgLoad;
-
-    }
-    editDrawingLambda(svg){
-        const editDrawing = (e) =>{
-            setup(svg);
-        }
-        return editDrawing
-
-    }
-    downloadDrawingLambda(svg){
-        const downloadDrawing = (e) => {
-            downloadSVG(svg.element, svg.name);
-        }
-        return downloadDrawing;
-
-    }
-    deleteDrawingLambda(thumbnailDIV,thumbnailElement){
-        const deleteDrawing = (e) => {
-            delete this.tiles[thumbnailElement.id];
-            delete this.thumbnailDivs[thumbnailDIV.id];
-            this.tileSetRerender();
-        }
-        return deleteDrawing;
-
-    }
-    tileSetRerender(){
-        var thumbnailDiv = document.getElementById(this.thumbnailDivID)
-        thumbnailDiv.innerHTML = "";
-        Object.entries(this.thumbnailDivs).forEach(([_, elem]) => thumbnailDiv.appendChild(elem))
-        Object.entries(this.tiles).forEach(([_, svg]) => svg.reRender());
-        thumbnailDiv.appendChild(this.downloadProjectButton);
-    }
-    export(){
-        return Object.entries(this.tiles).map(([_, svg]) => svg);
-    }
-    downloadProjectLambda(){
-        const downloadProject = () =>{
-            var exportName = "project_file"
-            //https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
-            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.tiles));
-            sessionStorage.setItem(this.sessionStorageKey, JSON.stringify(this.tiles));
-            var downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href",     dataStr);
-            downloadAnchorNode.setAttribute("download", exportName + ".json");
-            document.body.appendChild(downloadAnchorNode); // required for firefox
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
-        return downloadProject
-      }
-    saveTile(){
-    }
-
+    });
 }
 
 function rerenderAssemblage(){
-    assemblerElement = assemblerSetup(thumbnailsobj.export());
+    assemblerElement = assemblerSetup(thumbnailsobj.export(), assemblageWidth, assemblageHeight);
 }
 
 
@@ -365,26 +115,321 @@ function makeButton(text){
     return button
 }
 
+class SvgUI{
+    constructor(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon, selectedCSS){
+        this.svg = svg;
+        this.select = select;
+        this.layerElements = {};
+        this.layerDivElements= {};
+        this.width = width;
+        this.heigth =  height;
+        this.thumbnailWidth =  thumbnailWidth;
+        this.thumbnailHeight = thumbnailHeight;
+        this.thumbnailDivClass = thumbnailDivClass;
+        this.layerDivID = layerDivID;
+        this.icon = clearicon;
+        this.selectedCSS = selectedCSS
+        this.layerDivElement =  document.getElementById(this.layerDivID)
+        this.modeButtons = {}
+        this.modeEventListener = {}
+        this.destroyLambda = () => {
+            var layerContainer = document.getElementById(this.layerDivID);
+            layerContainer.innerHTML = ""
+        }
+        modeInfo.forEach(mode =>{
+            var modeButton = document.getElementById(mode.modeButtonDivID);
+            this.modeButtons[mode.modeName] = modeButton;
+            var modeEventListener = this.changeModeLambda(mode.modeName,modeButton);
+            modeButton.onclick = modeEventListener;
+            this.modeEventListener[mode.modeName] = modeEventListener;
+        })
+        layerInfo.forEach(layer => {
+            var thumbnailElemNS = SVGElement(width, height, thumbnailWidth, thumbnailHeight, "svg", layer.name);
+            var thumbnailDIV = makeDiv(thumbnailElemNS.id + "_container", layer.name, this.thumbnailDivClass);
+            var clearButton = makeButton(this.icon + " clear layer");
+            thumbnailDIV.appendChild(thumbnailElemNS);
+            thumbnailDIV.appendChild(clearButton);
+            this.layerDivElement.append(thumbnailDIV);
+            var thumbnailElem = document.getElementById(layer.name);
+            this.layerElements[layer.name] = thumbnailElem;
+            this.layerDivElements[layer.name] = thumbnailDIV;
+            this.layerDivs
+            thumbnailDIV.addEventListener("mousedown", this.changeLayerLambda(layer.name, thumbnailDIV ), false, );
+            clearButton.onclick = this.clearLayerLambda(layer.name);
+        });
+    }
+    addLabel(){
+
+    }
+    deleteLabel(){
+
+    }
+    changeLabel(){
+
+    }
+    changeModeLambda(modeName, modeButton){
+        const changeMode = e =>{
+            Object.entries(this.modeButtons).forEach(([_, div]) =>div.classList.remove(this.selectedCSS))
+            modeButton.classList.add(this.selectedCSS);
+            this.select.resetSelection();
+            SETMODE = modeName;
+            
+        }
+        return changeMode;
+    }
+    changeLayerLambda(name, thumbnailDIV ){
+        const changeSVGLayer = e =>{
+            this.select.resetSelection();
+            LAYERSELECTED = name;
+            Object.entries(this.layerDivElements).forEach(([_, div]) => div.classList.remove(this.selectedCSS))
+            thumbnailDIV.classList.add(this.selectedCSS);
+            this.svg.layerSelected = name;
+        }
+        return changeSVGLayer;
+    }
+    clearLayerLambda(name){
+        const clearSVGLayer = (e) => {
+            this.svg.clearLayer(name);
+            this.svg.reRender();
+            this.reRenderLayer(name);
+        };
+        return clearSVGLayer
+    }
+    destroy(){
+        var layerContainer = document.getElementById(this.layerDivID);
+        layerContainer.innerHTML = ""
+    }
+  
+    reRenderLayer(layerName){
+        var lines = this.svg.getLayer(layerName);
+        var thumbnailElement = this.layerElements[this.svg.layerSelected]
+        lines.forEach(line => {
+            line.addToParentElement(thumbnailElement);
+        });
+    }
+}
+
+
+
+class Thumbnails{
+    constructor(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDiv, trashIcon, saveIcon, editIcon, resetLambda,  sessionStorageKey){
+        this.thumbnailDivID = thumbnailDiv;
+        this.thumbnails = {};
+        this.numberID = 0;
+        this.width = width;
+        this.heigth =  height;
+        this.thumbnailWidth =  thumbnailWidth;
+        this.thumbnailHeight = thumbnailHeight;
+        this.thumbnailDivClass = thumbnailDivClass;
+        this.trashicon = trashIcon;
+        this.saveicon = saveIcon;
+        this.editicon = editIcon;
+        this.thumbnailDivs = {};
+        this.sessionStorageKey = sessionStorageKey;
+        this.resetLambda = resetLambda;
+    
+        if(sessionStorage.getItem(this.sessionStorageKey)){
+            this.loadFromSessionStorage();
+        }
+         
+    }
+    loadFromSessionStorage(){
+        var project = JSON.parse(sessionStorage.getItem(this.sessionStorageKey));
+        Object.entries(project).forEach(([key, svgJSON], index) => {
+            // var svgElement = SVGElement(width, height, width, height, "svg", index.toString());
+            var svgClass =  new Svg(null, svgJSON.name,  constructionLayer, layerInfo, outlineLayer, orientLayer , invalidCSS);
+            svgClass.fromJSON(svgJSON);
+      
+            this.addThumbnail(svgClass);
+        })
+        this.render();
+
+    }
+    addThumbnail(svg){
+        this.numberID += 1;
+        var id = this.numberID.toString() + "_thumbnail";
+        var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbnailWidth, this.thumbnailHeight, "svg", id);
+        var thumbnailDIV = makeDiv(id + "_container", svg.name, this.thumbnailDivClass);
+        var deleteButton = makeButton(this.trashicon +  " delete");
+        
+        var saveButton = makeButton(this.saveicon +  " download svg");
+        var loadButton = makeButton(this.editicon +  "edit tile");
+        thumbnailDIV.appendChild(thumbnailElemNS);
+        thumbnailDIV.appendChild(deleteButton);
+        thumbnailDIV.appendChild(saveButton);
+        thumbnailDIV.appendChild(loadButton);
+
+        $("#" + this.thumbnailDivID).append(thumbnailDIV);
+        var thumbnailElement = document.getElementById(id);
+        this.thumbnailDivs[thumbnailDIV.id] = thumbnailDIV;
+        
+        svg.prepareToSave();
+        svg.addNewElement(thumbnailElemNS);
+        svg.element = thumbnailElemNS;
+        this.thumbnails[thumbnailElement.id] = svg;
+
+
+        deleteButton.onclick = this.deleteDrawingLambda(thumbnailDIV,thumbnailElement);
+        saveButton.onclick = this.downloadDrawingLambda(svg);
+        loadButton.onclick = this.loadDrawingLambda(thumbnailDIV,thumbnailElement, svg);
+    }
+    loadDrawingLambda(thumbnailDIV,thumbnailElement, svg){
+        const svgDelete = this.deleteDrawingLambda(thumbnailDIV, thumbnailElement);
+        const svgEdit = this.editDrawingLambda(svg);
+        const svgLoad = (e) => {
+            this.resetLambda();
+            svgDelete();
+            svgEdit();
+        }
+        return svgLoad;
+
+    }
+    editDrawingLambda(svg){
+        const editDrawing = (e) =>{
+            svg.prepareToSave();
+            setup(svg);
+        }
+        return editDrawing
+
+    }
+    downloadDrawingLambda(svg){
+        const downloadDrawing = (e) => {
+            downloadSVG(svg.element, svg.name);
+        }
+        return downloadDrawing;
+
+    }
+    deleteDrawingLambda(thumbnailDIV,thumbnailElement){
+        const deleteDrawing = (e) => {
+            delete this.thumbnails[thumbnailElement.id];
+            delete this.thumbnailDivs[thumbnailDIV.id];
+            this.render();
+        }
+        return deleteDrawing;
+
+    }
+    render(){
+        var thumbnailDiv = document.getElementById(this.thumbnailDivID)
+        thumbnailDiv.innerHTML = "";
+        Object.entries(this.thumbnailDivs).forEach(([_, elem]) => thumbnailDiv.appendChild(elem))
+        Object.entries(this.thumbnails).forEach(([_, svg]) => svg.reRender());
+    }
+    export(){
+        return Object.entries(this.thumbnails).map(([_, svg]) => svg);
+    }
+    downloadProject(){
+            var exportName = "project_file"
+            //https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.thumbnails));
+            sessionStorage.setItem(this.sessionStorageKey, JSON.stringify(this.thumbnails));
+            var downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("download", exportName + ".json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+    }
+}
+
 function downloadAssemblage(){
     if(assemblerElement){
         downloadSVG(assemblerElement, "assemblage")
     }
 }
 
-
-const globalState = new GlobalState();
-
-
+function saveTile(){
+    var [b, errorString] = svg.canExport();
+    if(!b){
+        console.log(errorString);
+        openModal(errorString);
+        return;
+    }
+    reset();
+}
 
 function reset(){
-    globalState.addThumbnail();
+    thumbnailsobj.addThumbnail(svg);
+    layerthumbnails.destroy();
+    setup();
+    thumbnailsobj.render();
+}
+
+var tileCounter = 0;
+const width = 800;
+const height = 600;
+const assemblageWidth = 800;
+const assemblageHeight = 1800;
+const thumbnailHeight = Math.ceil(height / 4);
+const thumbnailWidth = Math.ceil(width / 4);
+const thumbnailDivClass = "thumbnail-container"
+const thumbnailDivID = "thumbnail-container"
+const selectedCSS = "selected-element" 
+const layerDivID = "layer-container"
+const svgID = "svgElement";
+const svgClass = "svg";
+const drawMode = "draw";
+const drawModeButtonID = "draw-button";
+const selectMode = "select";
+const selectModeButtonID = "select-button";
+
+
+var SETMODE = drawMode;
+const modeInfo = [
+    {
+        modeName: drawMode,
+        modeButtonDivID: drawModeButtonID
+    },
+    {
+        modeName: selectMode,
+        modeButtonDivID: selectModeButtonID
+    },
+]
+var pressed = false;
+const outlineLayer = "border";
+const orientLayer = "orient";
+const constructionLayer = "construction";
+var LAYERSELECTED = constructionLayer;
+const trashicon = `<i class="fa fa-trash" aria-hidden="true"></i>`
+const clearicon = `<i class="fa fa-times" aria-hidden="true"></i>`
+const savefileicon = ` <i class="fa fa-download" aria-hidden="true"></i> `
+const editicon = `<i class="fa fa-pencil" aria-hidden="true"></i> `
+const sessionStorageKey = "project"
+const invalidCSS = "invalid"
+var svgElement = null;
+var svg = null;
+var select = null;
+var layerthumbnails = null;
+var selectpointsmode = null;
+var assemblerElement = assemblerStart(width, height);
+const layerInfo = 
+[
+    {
+        name: outlineLayer,
+        color: "#A000F0",
+    },
+    {
+        name: orientLayer,
+        color: "#00FF00",
+    },
+    {
+        name: constructionLayer,
+        color: "#000000",
+    }
+]
+
+
+
+setup();
+var thumbnailsobj = new Thumbnails(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDivID, trashicon,savefileicon, editicon, layerthumbnails.destroyLambda, sessionStorageKey );
+thumbnailsobj.render();
+
+function downloadProject(){
+    thumbnailsobj.downloadProject();
+
 }
 
 
-globalState.initEditingTile();
 if (typeof(module) !== "undefined") {
     module.exports.layerInfo = layerInfo;
-    module.exports.width = 800;
-    module.exports.height = 600;
     module.exports.SVGElement = SVGElement;
 }

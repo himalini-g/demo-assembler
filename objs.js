@@ -201,21 +201,31 @@ class Line {
 
     }
     inRect(rect){
-        var lineRect = get_bbox(this.points);
-        if (rect[0].x == rect[1].x || rect[0].y == rect[1].y || lineRect[1].x == lineRect[0].x || lineRect[0].y == lineRect[1].y){
-            return false;
-        }
-        // If one rectangle is on left side of other
-        if (rect[0].x > lineRect[1].x || lineRect[0].x > rect[1].x) {
-            return false;
-        }
+        
+        for(var i = 0; i < this.points.length; i++){
+            var point = this.points[i];
 
-        // If one rectangle is above other
-        if (rect[1].y < lineRect[0].y || lineRect[1].y < rect[0].y) {
-            return false;
+            if(rect[0].x <= point.x && point.x <= rect[1].x && rect[0].y <= point.y && point.y <= rect[1].y){
+      
+                return true;
+            }
+            if(i + 1 < this.points.length){
+                var point2 = this.points[i + 1];
+                var rectbottomleft = {x: rect[0].x, y: rect[1].y};
+                var recttopright = {x: rect[1].x, y: rect[0].y };
+
+                if(doIntersect(point, point2, rect[0], rectbottomleft)){
+                    return true;
+                } else if(doIntersect(point, point2, rectbottomleft, rect[1])){
+                    return true;
+                } else if(doIntersect(point, point2, rect[1], recttopright)){
+                    return true;
+                } else if(doIntersect(point, point2, recttopright, rect[0])){
+                    return true;
+                }
+            }
         }
-     
-        return true;
+        return false;
     }
     reRender(){
         Object.entries(this.elements).forEach(([parentName, path]) => {
