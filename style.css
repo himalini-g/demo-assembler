@@ -104,7 +104,6 @@ button {
   }
 button:hover{
     Background-color: lightgray;
-
 }
 input {
     font-size: 30px;
@@ -155,35 +154,17 @@ svg text{
     width: 80%;
     font-size: 30px;
   }
-  
-  /* The Close Button */
-  .close {
-    color: #aaaaaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-  }
-  
-  .close:hover,
-  .close:focus {
-    color: #000;
-    text-decoration: none;
-    cursor: pointer;
-  }
+
 
   path.link {
     fill: none;
-    stroke: #000;
-    stroke-width: 4px;
+    stroke: lightgrey;
+    stroke-width: 8px;
     cursor: default;
   }
-
-  svg:not(.active):not(.ctrl) path.link {
-    cursor: pointer;
-  }
-  
+  path.link.hover, 
   path.link.selected {
-    stroke-dasharray: 10,2;
+    stroke: white;
   }
   
   path.link.dragline {
@@ -194,18 +175,30 @@ svg text{
     stroke-width: 0;
   }
   
-  circle.node {
-    stroke-width: 1.5px;
+
+  svg:not(.active):not(.ctrl) path.link {
     cursor: pointer;
   }
+ 
   
-  circle.node.reflexive {
-    stroke: #000 !important;
-    stroke-width: 2.5px;
+  circle.node {
+    stroke-width: 5.5px;
+    fill:gray;
+    stroke: lightgray;
+    cursor: pointer;
+  }
+  circle.node:hover{
+    fill: lightgray;
+    stroke: white;
+  }
+  circle.node.selected {
+    stroke: white;
+    fill: lightgray;
   }
   
   text {
-    font: 12px sans-serif;
+    font-size: 30px;
+    fill: white;
     pointer-events: none;
   }
   

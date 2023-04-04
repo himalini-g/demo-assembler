@@ -8,10 +8,9 @@ var labelText = document.getElementById("label-text-input");
 // Get the <span> element that closes the modal
 var span = document.getElementById("modal-text-close");
 // var modalText = document.getElementById("modal-text");
-console.log(modal, )
+
 // When the user clicks the button, open the modal 
 modalButton.onclick =function(){
-  console.log("helli")
   modal.style.display = "block";
   // modalText.innerHTML = "hello, please enter a new label";
 }
@@ -41,15 +40,25 @@ class Labels{
     this.graphWidth  = 960;
     this.graphHeight = 500;
     this.labels = [];
-    this.graph = null;
+    this.graph = new Graph(this.graphDisplayDivID, {});
   }
   addLabel(uncleanedLabel){
     var label = uncleanedLabel.replace(/[^a-z0-9]/gi, '');
-    var successful = true;
+    
     if(label in this.labels){
       return [false, "cannot add a label that already exists"];
+    } else if(label == ""){
+      return [false, "label cannot be empty string"];
     }
     this.labels[label] = null;
+    const rect = document.getElementById(this.labelDisplayDivID).getBoundingClientRect();
+    const x = Math.trunc((rect.right - rect.left) / 2);
+    const y =  Math.trunc((rect.bottom - rect.top) / 2);
+    this.graph.nodes.push({
+      id: label,
+      x: x,
+      y: y,
+    })
     this.render();
     return [true, null];
     
@@ -63,18 +72,22 @@ class Labels{
   render(){
     var labelDisplayDiv = document.getElementById(this.labelDisplayDivID)
     labelDisplayDiv.innerHTML = "";
-    Object.entries(this.labels).forEach(([label, _]) => {
-      var button = document.createElement( 'button' );
-      button.innerHTML = label
-      labelDisplayDiv.appendChild(button)
-    });
-    this.graph = new Graph(this.graphDisplayDivID);
+  
+    const rect = document.getElementById(this.labelDisplayDivID).getBoundingClientRect();
+    const x = Math.trunc((rect.right - rect.left) / 2);
+    const y =  Math.trunc((rect.bottom - rect.top) / 2);
+
+    this.graph.resetMouseVars();
+    this.graph.restart();
+    this.graph.addNode();
+   
     
     
   }
   unmount(){
     if(this.graph !== null){
-      this.graph.destroy()
+      document.getElementById(this.labelDisplayDivID).innerHTML = ""
+      // this.graph.destroy();
     }
 
   }
@@ -86,24 +99,17 @@ class Graph{
   constructor(divID){
     this.width = 960;
     this.height = 500;
+    this.circle_radius = 40;
     this.colors =  d3.scale.category10();
     this.graphSvg = d3.select("#" + divID)
       .append('svg')
       .attr('width', this.width)
-      .attr('height', this.height);
-    console.log(this.graphSvg);
-    this.nodes = [
-      {id: 0},
-      {id: 1},
-      {id: 2},
-      {id: 3},
-      {id: 4}
-    ],
-    this.lastNodeId = 4,
-    this.links = [
-      {source: this.nodes[0], target: this.nodes[1]},
-      {source: this.nodes[1], target: this.nodes[2] }
-    ];
+      .attr('height', this.height)
+      .attr('id', 'graph');
+
+    this.nodes = [];
+    this.links = []
+  
   
     // line displayed when dragging new nodes
     this.drag_line = this.graphSvg.append('svg:path')
@@ -125,14 +131,19 @@ class Graph{
     .links(this.links)
     .size([this.width, this.height])
     .linkDistance(150)
-    .charge(-50)
+    .charge(-500)
     .on('tick', () =>  this.tick(this.path))
     this.graphSvg.on('mousedown', (e) => this.mousedown(e))
     .on('mousemove',() => this.mousemove())
-    .on('mouseup', () => this.mouseup());
-    this.restart();
+    .on('mouseup', () => this.mouseup())
+    d3.select(window)
+    .on('keydown',() => this.keydown());
+    
   
 
+  }
+  addNode(){
+    this.restart();
   }
   mousedown( ) {
     // prevent I-bar on drag
@@ -147,13 +158,13 @@ class Graph{
   }
   destroy(){
     console.log("destroying");
-    d3.select("svg").remove();
+    d3.select('#graph').remove();
     
   }
   mousemove() {
     if(!this.mousedown_node) return;
-    
-    this.drag_line.attr('d', 'M' + this.mousedown_node.x + ',' + this.mousedown_node.y + 'L' + d3.mouse(this.graphSvg.node())[0] + ',' + d3.mouse(this.graphSvg.node())[1]);
+
+    this.drag_line.attr('d', 'M' + this.mousedown_node.x + ',' + this.mousedown_node.y + ' L' + d3.mouse(this.graphSvg.node())[0] + ',' + d3.mouse(this.graphSvg.node())[1]);
   
     this.restart();
   }
@@ -178,21 +189,21 @@ class Graph{
   tick() {
     // draw directed edges with proper padding from node centers
 
-    this.path.attr('d', function(d) {
+    this.path.attr('d', (d) => {
       var deltaX = d.target.x - d.source.x,
           deltaY = d.target.y - d.source.y,
           dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY),
           normX = deltaX / dist,
           normY = deltaY / dist,
-          sourcePadding = 12,
-          targetPadding = 12,
+          sourcePadding = this.circle_radius,
+          targetPadding = this.circle_radius,
           sourceX = d.source.x + (sourcePadding * normX),
           sourceY = d.source.y + (sourcePadding * normY),
           targetX = d.target.x - (targetPadding * normX),
           targetY = d.target.y - (targetPadding * normY);
-      return 'M' + sourceX + ',' + sourceY + 'L' + targetX + ',' + targetY;
+      return 'M' + sourceX + ',' + sourceY + ' L' + targetX + ',' + targetY;
     });
-  
+    
     this.circle.attr('transform', function(d) {
       return 'translate(' + d.x + ',' + d.y + ')';
     });
@@ -203,10 +214,9 @@ class Graph{
 
     // needed by FF
     this.drag_line
-      .classed('hidden', true)
-      .style('marker-end', '');
+      .classed('hidden', true);
 
-    // check for drag-to-self
+  
     this.mouseup_node = d;
     if(this.mouseup_node === this.mousedown_node) { this.resetMouseVars(); return; }
 
@@ -216,19 +226,18 @@ class Graph{
     });
 
     // add link to graph (update if exists)
-    // NB: links are strictly source < target; arrows separately specified by booleans
-    var source, target;
+    var mousedown_node = this.mousedown_node;
+    var mouseup_node = this.mouseup_node;
 
-    source = this.mousedown_node;
-    target = this.mouseup_node;
 
-    var link;
-    link = this.links.filter(function(l) {
-      return (l.source === source && l.target === target);
+    var link = this.links.filter(function(l) {
+
+      return ((l.source === mousedown_node && l.target === mouseup_node) || (l.source === mouseup_node && l.target === mousedown_node));
     })[0];
-
+   
+  
     if(!link) {
-      link = {source: source, target: target};
+      link = {source: this.mousedown_node, target: this.mouseup_node};
       this.links.push(link);
     }
 
@@ -247,6 +256,32 @@ class Graph{
     this.restart();
 
   }
+  spliceLinksForNode(node) {
+    this.links = this.links.filter(function(l) {
+      return !(l.source === node || l.target === node);
+    });
+  }
+  keydown() {
+
+  
+    if(!this.selected_node && !this.selected_link) return;
+    switch(d3.event.keyCode) {
+      case 8: // backspace
+      case 46: // delete
+        if(this.selected_node) {
+          this.nodes.splice(this.nodes.indexOf(this.selected_node), 1);
+          this.spliceLinksForNode(this.selected_node);
+        } else if(this.selected_link) {
+          this.links.splice(this.links.indexOf(this.selected_link), 1);
+        }
+        this.selected_link = null;
+        this.selected_node = null;
+        this.restart();
+        break;
+
+    }
+  }
+  
   circleMouseDown(d){
     // select node
     this.mousedown_node = d;
@@ -287,35 +322,22 @@ class Graph{
     this.circle = this.circle.data(this.nodes, function(d) { return d.id; });
   
     // update existing nodes (reflexive & selected visual states)
+    var selected_node = this.selected_node;
     this.circle.selectAll('circle')
-      .style('fill', (d) => { return (d === this.selected_node) ? d3.rgb(this.colors(d.id)).brighter().toString() : this.colors(d.id); })
+      .classed('selected', function (d) { return (d === selected_node)})
   
     // add new nodes
     var g = this.circle.enter().append('svg:g');
-
-    var mousedown_node = this.mousedown_node
     g.append('svg:circle')
       .attr('class', 'node')
-      .attr('r', 12)
-      .style('fill', (d) =>  { return (d === this.selected_node) ? d3.rgb(this.colors(d.id)).brighter().toString() : this.colors(d.id); })
-      .style('stroke', (d) =>  { return d3.rgb(this.colors(d.id)).darker().toString(); })
-      .on('mouseover', function(d) {
-        if(!mousedown_node || d === mousedown_node) return;
-        // enlarge target node
-        d3.select(this).attr('transform', 'scale(1.1)');
-      })
-      .on('mouseout', function(d) {
-        if(!mousedown_node || d === mousedown_node) return;
-        // unenlarge target node
-        d3.select(this).attr('transform', '');
-      })
+      .attr('r', this.circle_radius)
       .on('mousedown', (d) => this.circleMouseDown(d))
       .on('mouseup', (d) => this.circleMouseUp(d));
   
     // show node IDs
     g.append('svg:text')
         .attr('x', 0)
-        .attr('y', 4)
+        .attr('y', 12)
         .attr('class', 'id')
         .text(function(d) { return d.id; });
   
@@ -330,10 +352,9 @@ class Graph{
 
 
 var labelmanager = new Labels();
+
 function addLabel(){
   labelmanager.addLabel(labelText.value);
   labelText.value = "";
 }
 
-// var graph = new Graph('body');
-console.log("hello")
