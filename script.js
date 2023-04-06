@@ -338,6 +338,7 @@ function downloadAssemblage(){
 }
 
 function saveTile(){
+    console.log("Hello??")
     var [b, errorString] = svg.canExport();
     if(!b){
         console.log(errorString);

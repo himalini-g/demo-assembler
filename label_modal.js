@@ -1,114 +1,25 @@
-
-var modal = document.getElementById("enter-label");
-
-// Get the button that opens the modal
-var modalButton = document.getElementById("add-label");
-var labelText = document.getElementById("label-text-input");
-
-// Get the <span> element that closes the modal
-var span = document.getElementById("modal-text-close");
-// var modalText = document.getElementById("modal-text");
-
-// When the user clicks the button, open the modal 
-modalButton.onclick =function(){
-  modal.style.display = "block";
-  // modalText.innerHTML = "hello, please enter a new label";
-}
-
-
-// When the user clicks on <span> (x), close the modal
-span.onclick = function() {
-  modal.style.display = "none";
-  labelmanager.unmount();
-}
-
-// When the user clicks anywhere outside of the modal, close it
-window.onclick = function(event) {
-  if (event.target == modal) {
-    modal.style.display = "none";
-    labelmanager.unmount();
-
-  }
-}
-
-
 class Labels{
-  constructor(){
-    this.labels = {};
+  constructor(assignlabels){
+    this.modalID = "enter-label";
     this.labelDisplayDivID = "label-display";
     this.graphDisplayDivID = "graph-display";
-    this.graphWidth  = 960;
-    this.graphHeight = 500;
-    this.labels = [];
-    this.graph = new Graph(this.graphDisplayDivID, {});
-  }
-  addLabel(uncleanedLabel){
-    var label = uncleanedLabel.replace(/[^a-z0-9]/gi, '');
-    
-    if(label in this.labels){
-      return [false, "cannot add a label that already exists"];
-    } else if(label == ""){
-      return [false, "label cannot be empty string"];
-    }
-    this.labels[label] = null;
-    const rect = document.getElementById(this.labelDisplayDivID).getBoundingClientRect();
-    const x = Math.trunc((rect.right - rect.left) / 2);
-    const y =  Math.trunc((rect.bottom - rect.top) / 2);
-    this.graph.nodes.push({
-      id: label,
-      x: x,
-      y: y,
-    })
-    this.render();
-    return [true, null];
-    
-  }
-  editLabel(){
-
-  }
-  deleteLabel(){
-
-  }
-  render(){
-    var labelDisplayDiv = document.getElementById(this.labelDisplayDivID)
-    labelDisplayDiv.innerHTML = "";
-  
-    const rect = document.getElementById(this.labelDisplayDivID).getBoundingClientRect();
-    const x = Math.trunc((rect.right - rect.left) / 2);
-    const y =  Math.trunc((rect.bottom - rect.top) / 2);
-
-    this.graph.resetMouseVars();
-    this.graph.restart();
-    this.graph.addNode();
-   
-    
-    
-  }
-  unmount(){
-    if(this.graph !== null){
-      document.getElementById(this.labelDisplayDivID).innerHTML = ""
-      // this.graph.destroy();
-    }
-
-  }
-}
-
-
-// set up SVG for D3
-class Graph{
-  constructor(divID){
-    this.width = 960;
+    this.labelErrorDisplayPID = "error-add-label";
+    this.moveLabelButtonID = "move-label";
+    this.editLabelButtonID = "edit-label";
+    this.svgHeight = "error-add-label";
+    this.selectedCSS = "selected-element" 
+    this.width = 100;
     this.height = 500;
     this.circle_radius = 40;
     this.colors =  d3.scale.category10();
-    this.graphSvg = d3.select("#" + divID)
+    this.graphSvg = d3.select("#" + this.graphDisplayDivID)
       .append('svg')
       .attr('width', this.width)
       .attr('height', this.height)
       .attr('id', 'graph');
 
     this.nodes = [];
-    this.links = []
+    this.links = [];
   
   
     // line displayed when dragging new nodes
@@ -120,35 +31,128 @@ class Graph{
     this.path = this.graphSvg.append('svg:g').selectAll('path');
     this.circle = this.graphSvg.append('svg:g').selectAll('g');
 
+    
+
     // mouse event this.
     this.selected_node = null;
     this.selected_link = null;
     this.mousedown_link = null;
     this.mousedown_node = null;
     this.mouseup_node = null;
+    this.isKeyPressed = false;
+    this.canDrag = false;
     this.force = d3.layout.force()
     .nodes(this.nodes)
     .links(this.links)
     .size([this.width, this.height])
-    .linkDistance(150)
+    .linkDistance(300)
     .charge(-500)
     .on('tick', () =>  this.tick(this.path))
     this.graphSvg.on('mousedown', (e) => this.mousedown(e))
     .on('mousemove',() => this.mousemove())
     .on('mouseup', () => this.mouseup())
     d3.select(window)
-    .on('keydown',() => this.keydown());
+    .on('keydown',() => this.keydown())
+    .on('keyup', () => this.keyup());
+    this.force.drag().on('dragstart', (d) => {d.fixed=true});
+
+
+    document.getElementById(this.moveLabelButtonID).onclick = () => this.moveMode();
+    document.getElementById(this.editLabelButtonID).onclick = () => this.editMode();
+    this.editMode();
     
-  
+
+    this.assignlabels = assignlabels;
 
   }
-  addNode(){
+
+  moveMode(){
+    this.canDrag = true;
+    document.getElementById(this.moveLabelButtonID).classList.add(this.selectedCSS);
+    document.getElementById(this.editLabelButtonID).classList.remove(this.selectedCSS);
+    this.resetMouseVars();this.svgHeight
+    this.circle.call(this.force.drag);
+    this.graphSvg.classed('ctrl', true);
+  }
+
+  editMode(){
+    this.canDrag = false;
+    document.getElementById(this.editLabelButtonID).classList.add(this.selectedCSS);
+    document.getElementById(this.moveLabelButtonID).classList.remove(this.selectedCSS);
+    this.graphSvg.classed('ctrl', false);
+    this.circle
+      .on('mousedown.drag', null)
+      .on('touchstart.drag', null);
+  }
+
+  showError(error){
+    document.getElementById(this.labelErrorDisplayPID).innerHTML = error;
+  }
+
+  hideError(){
+    document.getElementById(this.labelErrorDisplayPID).innerHTML  = "";    
+  }
+
+  addLabel(uncleanedLabel){
+    this.hideError();
+    var label = uncleanedLabel.value.replace(/[^a-z0-9]/gi, '');
+    if(label == ""){
+      this.showError("label cannot be empty string");
+      return [false, "label cannot be empty string"];
+    }
+    var inNodes = this.nodes.some(node => node.id == label);
+    if(inNodes){
+      this.showError("cannot add a label that already exists");
+      return [false, "cannot add a label that already exists"];
+    } 
+
+    const rect = (this.graphSvg.node()).getBoundingClientRect();
+    const x = Math.trunc((rect.right - rect.left) / 2);
+    const y =  Math.trunc((rect.bottom - rect.top) / 2);
+    this.nodes.push({
+      id: label,
+      x: x,
+      y: y,
+    })
+    this.render();
+    this.assignlabels.render(this.nodes);
+    uncleanedLabel.value = "";
+    return [true, null];
+
+  }
+
+  render(){
+    var labelDisplayDiv = document.getElementById(this.labelDisplayDivID)
+    labelDisplayDiv.innerHTML = "";
+  
+    const rect = document.getElementById(this.labelDisplayDivID).getBoundingClientRect();
+    const x = Math.trunc((rect.right - rect.left) / 2);
+    const y =  Math.trunc((rect.bottom - rect.top) / 2);
+
+    this.resetMouseVars();
+    this.restart();
+   
+  }
+  mount(){
+    
+    document.getElementById(this.modalID).style.display = "block";
+    const rect = document.getElementById(this.svgHeight).getBoundingClientRect();
+    this.width = Math.trunc(rect.right - rect.left);
+    this.force.size([this.width, this.height]);
+    this.graphSvg
+      .attr('width', this.width);
     this.restart();
   }
-  mousedown( ) {
+  unmount(){
+    document.getElementById(this.modalID).style.display = "none";
+    document.getElementById(this.labelDisplayDivID).innerHTML = ""
+  }
+ 
+  mousedown() {
     // prevent I-bar on drag
-
     // because :active only works in WebKit?
+
+    if(this.canDrag) return;
 
     this.graphSvg.classed('active', true);
   
@@ -162,6 +166,8 @@ class Graph{
     
   }
   mousemove() {
+    if(this.canDrag) return;
+
     if(!this.mousedown_node) return;
 
     this.drag_line.attr('d', 'M' + this.mousedown_node.x + ',' + this.mousedown_node.y + ' L' + d3.mouse(this.graphSvg.node())[0] + ',' + d3.mouse(this.graphSvg.node())[1]);
@@ -261,7 +267,14 @@ class Graph{
       return !(l.source === node || l.target === node);
     });
   }
+  keyup(){
+    this.isKeyPressed = false;
+  }
   keydown() {
+    if(this.isKeyPressed){
+      return;
+    }
+    this.isKeyPressed = true;
 
   
     if(!this.selected_node && !this.selected_link) return;
@@ -277,6 +290,7 @@ class Graph{
         this.selected_link = null;
         this.selected_node = null;
         this.restart();
+        this.assignlabels.render(this.nodes);
         break;
 
     }
@@ -337,8 +351,8 @@ class Graph{
     // show node IDs
     g.append('svg:text')
         .attr('x', 0)
-        .attr('y', 12)
         .attr('class', 'id')
+        .attr('alignment-baseline', 'middle')
         .text(function(d) { return d.id; });
   
     // remove old nodes
@@ -350,11 +364,64 @@ class Graph{
 }
 
 
+class AssignLabel{
+  constructor(){
+    this.dropDowns = () => document.getElementsByClassName("dropdown-content");
+    window.onclick = function(event) {
+      if (!event.target.matches('#assign-label')) {
+        var dropdowns = document.getElementsByClassName("dropdown-content");
+        var i;
+        for (i = 0; i < dropdowns.length; i++) {
+          var openDropdown = dropdowns[i];
+          if (openDropdown.classList.contains('show')) {
+            openDropdown.classList.remove('show');
+          }
+        }
+      }
+    }
+  }
+  render(nodes){
+    var dropDownDiv =  document.getElementById("label-dropdown");
+    dropDownDiv.innerHTML = "";
+    nodes.forEach(node => {
+      var text = document.createElement('p');
+      text.innerHTML = node.id;
+      dropDownDiv.appendChild(text);
+    });
+  }
+  toggleDropDown(){
+    document.getElementById("label-dropdown").classList.toggle("show");
+  }
+}
 
-var labelmanager = new Labels();
 
+var assignlabels = new AssignLabel();
+var labelmanager = new Labels(assignlabels);
+
+
+function toggleDropdown(){
+  assignlabels.toggleDropDown()
+
+}
 function addLabel(){
-  labelmanager.addLabel(labelText.value);
-  labelText.value = "";
+  labelmanager.addLabel(document.getElementById("label-text-input"));
+}
+
+// When the user clicks the button, open the modal 
+document.getElementById("add-label").onclick =function(){
+  labelmanager.mount();
+
+}
+
+
+// When the user clicks on <span> (x), close the modal
+document.getElementById("modal-text-close").onclick = function() {
+  labelmanager.unmount();
+}
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+  if (event.target == document.getElementById("enter-label")) {
+    labelmanager.unmount();
+  }
 }
 

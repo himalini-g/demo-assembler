@@ -10,18 +10,13 @@
   </head>
   <body>
     <div>
-     <!-- Trigger/Open The Modal -->
       <button id="hidden-modal-button" style="display: none;">Open Modal</button>
-      <!-- The Modal -->
       <div id="error-modal" class="modal">
-        <!-- Modal content -->
         <div class="modal-content">
-          <span class="close">&times;</span>
-          <p id="modal-text">Some text in the Modal..</p>
+          <span id="close-error-modal" class="close">&times;</span>
+          <p id="modal-text"></p>
         </div>
-
       </div>
-      
       </div>
       <div class="header"> Make Tile </div>
       <div id="drawing-ui-container" class="drawing-container">
@@ -31,7 +26,12 @@
           <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
           <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
           <button id="add-label">manage labels</button>
-          <!-- The Modal -->
+          <button onclick="toggleDropdown()" id="assign-label" class="inactive">assign label</button>
+          <div class="dropdown">
+            <div id="label-dropdown" class="dropdown-content">
+            </div>
+          </div>
+
           <div id="enter-label" class="modal">
             <!-- Modal content -->
             <div class="modal-content">
@@ -40,7 +40,11 @@
                 Add new label:
                 <input type="text" maxlength="512" id="label-text-input"/>
                 <button onclick="addLabel()">add label</button>
-                <div>Active Labels:</div>
+                <p id="error-add-label"></p>
+                <div> 
+                  <button id="move-label"> move label</button> 
+                  <button id="edit-label">draw and select nodes/edges</button>
+                </div>
                 <div id="label-display">
                 </div>
                 <div id="graph-display">

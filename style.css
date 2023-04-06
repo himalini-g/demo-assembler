@@ -1,67 +1,65 @@
 html, body
 
 {
-    padding: 0px;
-    margin: 0px;
-    font-family: Arial;
-    background-color: #1e2433;
-    color: white;
+  padding: 0px;
+  margin: 0px;
+  font-family: Arial;
+  background-color: #1e2433;
+  color: white;
 }
 .invalid {
-    stroke: red;
+  stroke: red;
 }
 .header{
-    font-size: 40px;
-    padding: 10px 40px;
-    font-weight: bold;
-    /* background:  */
+  font-size: 40px;
+  padding: 10px 40px;
+  font-weight: bold;
+  /* background:  */
 }
 
 .svg
 {
-    border: 1px solid;
-    margin-top: 4px;
-    margin-left: 4px;
-    cursor: default;
+  border: 1px solid;
+  margin-top: 4px;
+  margin-left: 4px;
+  cursor: default;
 }
 .circle:hover 
 {
-    cursor: move;
-    stroke: lightblue;
-    fill: lightblue;
+  cursor: move;
+  stroke: lightblue;
+  fill: lightblue;
 }
-.drawing-container
-{
-    display: flex;
-    flex-direction: row;
+.drawing-container {
+  display: flex;
+  flex-direction: row;
 
 }
-.drawing-panel{
-    width: 250px;
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    align-items: stretch;
+.drawing-panel {
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
 }
 
-.generating-panel{
-    width : 150px;
-    display: flex;
-    flex-direction: column;
+.generating-panel {
+  width : 150px;
+  display: flex;
+  flex-direction: column;
 
 }
 .layer {
-    align-items: vertical;
+  align-items: vertical;
 }
 
-.path-selection 
-{
-    outline: 1px solid blue;
+.path-selection {
+  outline: 1px solid blue;
 }
 .svg{
-    background: white;
-    border: 1px solid black;
+  background: white;
+  border: 1px solid black;
 }
 .thumbnail-panel{
     display: grid;
@@ -93,17 +91,24 @@ html, body
 }
 
 button {
-    font-size: 30px;
-    /* height: 40px; */
-    padding: 5px 3rpx;
-    margin: 5px 10px;
-    Background-color: gray;
-    color: white;
-    border: gray;
-    border-radius:5px;
-  }
+  /* width: 90%; */
+  font-size: 30px;
+  /* height: 40px; */
+  padding: 5px 3rpx;
+  margin: 5px 10px;
+  Background-color: gray;
+  color: white;
+  border: gray;
+  border-radius:5px;
+}
 button:hover{
     Background-color: lightgray;
+}
+button.inactive{
+  color: rgb(200, 200, 200);
+}
+button.inactive:hover{
+  Background-color: gray;
 }
 input {
     font-size: 30px;
@@ -132,77 +137,116 @@ svg text{
 
 /* The Modal (background) */
 .modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1; /* Sit on top */
-    padding-top: 100px; /* Location of the box */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgb(0,0,0); /* Fallback color */
-    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-  }
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  padding-top: 100px; /* Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
   
-  /* Modal Content */
-  .modal-content {
-    background-color: #1e2433;
-    margin: auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    font-size: 30px;
-  }
+/* Modal Content */
+.modal-svg {
+  font-family: Arial;
+}
+
+.modal-content {
+  background-color: #1e2433;
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  font-size: 30px;
+}
 
 
-  path.link {
-    fill: none;
-    stroke: lightgrey;
-    stroke-width: 8px;
-    cursor: default;
-  }
-  path.link.hover, 
-  path.link.selected {
-    stroke: white;
-  }
-  
-  path.link.dragline {
-    pointer-events: none;
-  }
-  
-  path.link.hidden {
-    stroke-width: 0;
-  }
-  
+path.link {
+  fill: none;
+  stroke: lightgrey;
+  stroke-width: 8px;
+  cursor: default;
+}
+path.link.hover, 
+path.link.selected {
+  stroke: white;
+}
 
-  svg:not(.active):not(.ctrl) path.link {
-    cursor: pointer;
-  }
- 
-  
-  circle.node {
-    stroke-width: 5.5px;
-    fill:gray;
-    stroke: lightgray;
-    cursor: pointer;
-  }
-  circle.node:hover{
-    fill: lightgray;
-    stroke: white;
-  }
-  circle.node.selected {
-    stroke: white;
-    fill: lightgray;
-  }
-  
-  text {
-    font-size: 30px;
-    fill: white;
-    pointer-events: none;
-  }
-  
-  text.id {
-    text-anchor: middle;
-    font-weight: bold;
-  }
+path.link.dragline {
+  pointer-events: none;
+}
+
+path.link.hidden {
+  stroke-width: 0;
+}
+
+svg:not(.active):not(.ctrl) path.link {
+  cursor: pointer;
+}
+
+circle.node {
+  stroke-width: 5.5px;
+  fill:gray;
+  stroke: lightgray;
+  cursor: pointer;
+}
+circle.node:hover{
+  fill: lightgray;
+  stroke: white;
+}
+circle.node.selected {
+  stroke: white;
+  fill: lightgray;
+}
+
+text {
+  /* font-size: 30px; */
+  /* fill: white; */
+  pointer-events: none;
+}
+
+text.id {
+  text-anchor: middle;
+  font-weight: bold;
+}
+
+
+
+/* The container <div> - needed to position the dropdown content */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: grey;
+  min-width: 160px;
+  z-index: 1;
+}
+
+/* Links inside the dropdown */
+.dropdown-content p {
+  color: white;
+  padding: 12px 16px;
+  text-decoration: none;
+  font-size: 30px;
+  display: block;
+  margin: 0px;
+}
+
+/* Change color of dropdown links on hover */
+.dropdown-content p:hover {
+  background-color:  lightgrey;
+}
+
+/* Show the dropdown menu (use JS to add this class to the .dropdown-content container when the user clicks on the dropdown button) */
+.show {
+  display:block;
+}

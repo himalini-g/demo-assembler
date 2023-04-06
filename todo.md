@@ -35,6 +35,7 @@
 - [ ] enable a history stack
 - [x] make the point system consistent across the assembler and the drawing 
 - [x] refactor in general
+- [ ] refactor again
 - [ ] line smoothing function to reduce lag time + allow control point moving => change the point type to include control points
 - [x] think about how to seperate out the render from the representation while maintaining real time updates (store element in some dictionary where the caller maintains the element they are referring to and want a string render to) (maintain a "master copy" of each attribute and only return the string of the HTML attribute allowing it to be appended on muliple elements (bad for maintaining things like ID))
 

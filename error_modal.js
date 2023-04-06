@@ -1,21 +1,17 @@
 var modal = document.getElementById("error-modal");
+console.log(modal);
 
-// Get the button that opens the modal
-var modalButton = document.getElementById("hidden-modal-button");
 
 // Get the <span> element that closes the modal
-var span = document.getElementsByClassName("close")[0];
+var span = document.getElementById("close-error-modal");
 var modalText = document.getElementById("modal-text");
 
 // When the user clicks the button, open the modal 
 function openModal(text = ""){
+  console.log(modal);
   modal.style.display = "block";
   modalText.innerHTML = text;
 }
-// modalButton.onclick = function(e, text=`yoooo`) {
-//   modal.style.display = "block";
-//   modalText.innerHTML = text;
-// }
 
 // When the user clicks on <span> (x), close the modal
 span.onclick = function() {
