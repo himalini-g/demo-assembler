@@ -231,7 +231,6 @@ function pointInPolygon(point, vs) {
             && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
     }
-
     return inside;
 };
 if (typeof(module) !== "undefined") {

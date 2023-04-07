@@ -1,5 +1,5 @@
 class Circle {
-    constructor(point, ID, radius=3, fill="#0000ff", stroke="#0000c8"){
+    constructor(point, ID, radius=4, fill="#0000ff", stroke="#0000c8"){
         this.fill = fill;
         this.stroke = stroke;
         this.point = point;
@@ -51,12 +51,13 @@ class Circle {
     }
 }
 class TextSVG {
-    constructor(point, ID, txt, fill="#0000ff") {
+    constructor(point, ID, txt, fill="#0000ff", text_anchor="start") {
         this.fill = fill;
         this.point = point;
         this.id = ID;
         this.elements = [];
         this.txt = txt;
+        this.text_anchor = text_anchor;
     }
     addToParentElement(parent){
         if(parent.id in this.elements){
@@ -67,6 +68,7 @@ class TextSVG {
         newText.setAttribute("y", this.point.y);
         newText.setAttribute("x", this.point.x);
         newText.setAttribute("id", this.id);
+        newText.setAttribute("text-anchor", this.text_anchor);
         newText.textContent  = this.txt;
         newText.classList.add(this.id);
      
@@ -95,6 +97,7 @@ class TextSVG {
         this.point =json.point;
         this.id = json.id;
         this.txt = json.txt;
+        this.text_anchor = json.text_anchor;
     }
     destroy(){
         Object.entries(this.elements).forEach(([_, element]) => element.outerHTML = "");

@@ -84,9 +84,9 @@ class SelectPoints{
         }
 
         this.svg.getLine(this.lineID).reRender();
-        var [b, text] = this.svg.getText(this.lineID);
-        if(b){
-            text.reRender()
+        var text = this.svg.getText(this.lineID);
+        if(text.length != null){
+            text.length.reRender();
         }
         circle.reRender();
         this.compliance();
@@ -151,10 +151,8 @@ class Select{
         };
 
         this.selectingPoints = false;
-        this.compliance = () => true;
-    }
-    isSelected(){
-        return this.selected.length > 0;
+        this.compliance = () => null;
+        this.orientlinemode = null;
     }
     doubleClickHandler(e){
         this.clickedInSelection = false;
@@ -180,7 +178,7 @@ class Select{
             this.compliance();
         } else {
              // click is in the selected boxes
-            if(this.isSelected() && this.clickInSelected(e)){
+            if(this.selected.length > 0 && this.clickInSelected(e)){
                 this.clickedInSelection = true;
                 this.startSelection(e);
             // click is outside the selection, therefore start new selection
@@ -218,13 +216,9 @@ class Select{
         this.selected.forEach(line => line.addCSS(this.selectionCss));
     }
     clickInSelected(e){
-        //click point criteria
-
-        //selection box criteria
-        if(!this.isSelected()){
+        if(!(this.selected.length > 0)){
             return false;
         }
-        
         var point = relativeMousePosition(e, this.element);
         var potentialSelected = this.svg.getLinesInPoint(point);
         const found = potentialSelected.some( line => this.selected.includes(line))

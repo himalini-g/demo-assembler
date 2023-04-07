@@ -14,15 +14,17 @@ function setup(passedSVG=null){
         svg.element = svgElement;
     }
     selectpointsmode = new SelectPoints(svg);
-    var orientlinemode = new OrientLineMode(svg, selectpointsmode, orientLayer);
+    orientlinemode = new OrientLineMode(svg, selectpointsmode, orientLayer);
     selectpointsmode.orientlinemode = orientlinemode;
-   
+    
     select = new Select(svg, selectpointsmode);
+    var outlinemode = new OutlineMode(svg, selectpointsmode, outlineLayer);
+    selectpointsmode.outlinemode = outlinemode;
+    select.orientlinemode = orientlinemode;
     
 
     layerthumbnails = new SvgUI(layerInfo, svg, select, width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, layerDivID, modeInfo, clearicon,  selectedCSS);
-    var outlinemode = new OutlineMode(svg, selectpointsmode, outlineLayer);
-    selectpointsmode.outlinemode = outlinemode;
+    
     
     const compliance = () => {
         svg.errorCheckOutline();
@@ -83,7 +85,7 @@ function setup(passedSVG=null){
 }
 
 function rerenderAssemblage(){
-    assemblerElement = assemblerSetup(thumbnailsobj.export(), assemblageWidth, assemblageHeight);
+    assemblerElement = assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight);
 }
 
 
@@ -233,6 +235,14 @@ class Thumbnails{
         }
          
     }
+    removeLabel(label){
+        Object.entries(this.thumbnails).forEach(([_, nail]) => {
+            nail.removeLabel(label);
+            nail.reRender();
+        });
+        svg.removeLabel(label);
+        svg.reRender();
+    }
     loadFromSessionStorage(){
         var project = JSON.parse(sessionStorage.getItem(this.sessionStorageKey));
         Object.entries(project).forEach(([key, svgJSON], index) => {
@@ -338,7 +348,7 @@ function downloadAssemblage(){
 }
 
 function saveTile(){
-    console.log("Hello??")
+  
     var [b, errorString] = svg.canExport();
     if(!b){
         console.log(errorString);
@@ -401,6 +411,7 @@ var svg = null;
 var select = null;
 var layerthumbnails = null;
 var selectpointsmode = null;
+var orientlinemode = null;
 var assemblerElement = assemblerStart(width, height);
 const layerInfo = 
 [
@@ -426,7 +437,6 @@ thumbnailsobj.render();
 
 function downloadProject(){
     thumbnailsobj.downloadProject();
-
 }
 
 

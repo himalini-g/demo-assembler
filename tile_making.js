@@ -53,6 +53,15 @@ class Svg {
 		}
 		return [b, errorString];
 	}
+    removeLabel(label){
+        Object.entries(this.text).forEach(([key, text]) => {
+            if(text.txt == label){
+                text.destroy();
+                delete this.text[key];
+            }
+        })
+        this.reRender();
+    }
 	getOutlineID(){
 		var outlineIDs = Object.entries(this.layers[this.outlineLayerName]);
         if(outlineIDs.length == 0){
@@ -74,6 +83,7 @@ class Svg {
             return;
         }
         points.push(closePoint);
+      
         var outlineLineSegments = [];
         for(var i = 0; i < points.length - 1; i++){
             var p1 = points[i];
@@ -85,14 +95,17 @@ class Svg {
         });
         orientLineSegments.forEach(orientLine => {
             var newError = false;
+            
             outlineLineSegments.forEach(outlineSegment =>{
-                if(doIntersect(orientLine.points[0],orientLine.points[1],  outlineSegment[0], outlineSegment[1])){
+                if(doIntersect(orientLine.points[0],orientLine.points[1],  outlineSegment[0], outlineSegment[1])
+                    || pointInPolygon(orientLine.points[0], points)
+                    || pointInPolygon(orientLine.points[1], points)){
                     this.errors[orientLine.id] = `<li> The orientation lines cannot
 					be inside the the border for the tile.
 					Please adjust the orientation line or the border with the 'select' tool. </li> `;
                     orientLine.addCSS(this.invalidCSS)
                     newError = true;
-                }
+                } 
                 if(!newError && orientLine.id in this.errors){
                     delete this.errors[orientLine.id];
                     orientLine.removeCSS(this.invalidCSS)
@@ -188,7 +201,7 @@ class Svg {
     getLayer(layerName){
         return Object.entries(this.layers[layerName]).map(([_, line]) => line);
     }
-    addText(point, text, pointIsRelative=false, lineID){
+    addText(point, text, pointIsRelative=false, lineID, isLabel=false){
         var color = this.layerColors[this.layerSelected];
         var relativePoint;
         if(pointIsRelative){
@@ -196,7 +209,13 @@ class Svg {
         } else{
             relativePoint = relativeMousePosition(point, this.element);
         }
-        var textObj = new TextSVG(relativePoint,  this.genTextID(lineID),  text, color)
+        var textObj;
+        if(isLabel){
+            textObj = new TextSVG(relativePoint, this.genLabelId(lineID), text, color, "end");
+        } else {
+            textObj = new TextSVG(relativePoint, this.genTextID(lineID), text, color);
+        }
+        
         textObj.addToParentElement(this.element);
         this.text[textObj.id] = textObj;
         return textObj;
@@ -230,7 +249,27 @@ class Svg {
             elem.reRender();
         })
     }
- 
+    getLabels(){
+        var labels = {};
+        Object.entries(this.layers[this.orientLayerName]).forEach(([id, line]) => {
+            var text = this.getText(id);
+            if(text.label != null){
+                labels[line.id] = text.label.txt;
+            } else {
+                labels[line.id] = "";
+            }
+        });
+        return labels;
+    }
+    getOrientLayer(layer){
+        return Object.entries(this.layers[layer]).map(([id, line]) => {
+            return {
+                id: id,
+                points: line.points
+            };
+        })
+
+    }
     getLayerAssembler(layer){
         return Object.entries(this.layers[layer]).map(([_, line]) => {
             return line.points;
@@ -239,14 +278,24 @@ class Svg {
     getLine(lineID){
         return this.layers[this.layerSelected][lineID];
     }
+    genLabelId(lineID){
+        return lineID + "_label";
+    }
     genTextID(lineID){
         return lineID + "_text";
     }
     getText(lineID){
-        if(this.genTextID(lineID) in this.text){
-            return [true, this.text[this.genTextID(lineID)]];
+        var text= {
+            length: null,
+            label: null
         }
-        return [false, this.text[this.genTextID(lineID)]]
+        if(this.genTextID(lineID) in this.text){
+            text.length = this.text[this.genTextID(lineID)];
+        }
+        if(this.genLabelId(lineID) in this.text){
+            text.label = this.text[this.genLabelId(lineID)];
+        }
+        return text;
     }
     updateSvgPath(point, lineID, pointIsRelative=false) {
         var relativePoint;
@@ -271,12 +320,15 @@ class Svg {
             if(this.genTextID(line.id) in this.text){
                 this.text[this.genTextID(line.id)].moveByVector(vec);
             }
+            if(this.genLabelId(line.id) in this.text){
+                this.text[this.genLabelId(line.id)].moveByVector(vec);
+            }
         })
     }
     getLinesInPoint(point){
         var selected = Object.entries(this.layers[this.layerSelected]).reduce((acc, [_,curLine]) => {
             if(curLine.pointInRect(point)){
-                acc.push(curLine)
+                acc.push(curLine);
             }
             return acc;
         }, []);
@@ -326,6 +378,10 @@ class Svg {
             if(this.genTextID(id) in this.text){
                 this.text[this.genTextID(id)].destroy();
                 delete this.text[this.genTextID(id)];
+            }
+            if(this.genLabelId(id) in this.text){
+                this.text[this.genLabelId(id)].destroy();
+                delete this.text[this.genLabelId(id)];
             }
             if(id in this.layers[this.layerSelected]){
                 this.layers[this.layerSelected][id].destroy();
@@ -394,7 +450,7 @@ class OutlineMode{
 		// constructor(point, ID, txt, fill="#0000ff")
 		const outlineID = this.svg.getOutlineID();
 		var points = this.svg.getLine(outlineID).points;
-		this.text = this.svg.addText(points[points.length - 1], "last point", outlineID);
+		this.text = this.svg.addText(points[points.length - 1], "last point", true, outlineID);
 	}
     mouseDownHandler(e){
         this.selectingPoints = this.selectpoints.clickInPoint(e);
@@ -480,21 +536,41 @@ class ConstructionMode {
 class OrientLineMode{
     constructor(svg, selectpoints, name){
 		this.name = name;
-		console.log(name);
         this.svg = svg;
         this.baseID = null;
         this.selectpoints = selectpoints;
         this.selectingPoints = false;
 		this.compliance = () => true;
     }
+    assignLabel(lines, label){
+        if(this.svg.layerSelected == this.name){
+            lines.forEach(line => {
+                var [average, _] =  this.svg.computeAverage(line.id);
+                var text = this.svg.getText(line.id);
+                if(text.label != null){
+                    
+                    text.label.txt = label
+                    text.label.reRender();
+                } else {
+                    this.svg.addText(average, label, true, line.id, true);
+                }
+            })
+        }
+    }
     reComp(lineID){
         const [average, length] =  this.svg.computeAverage(lineID);
         this.svg.getLine(lineID).removePoint();
-        var [b, text] = this.svg.getText(lineID);
-        if(b){
-            text.point = average;
-            text.txt = Math.trunc(length).toString();
+        var text = this.svg.getText(lineID);
+        if(text.length != null){
+            text.length.point = average;
+            text.length.txt = Math.trunc(length).toString();
+        } 
+
+        if(text.label != null){
+            text.label.point = average;
+            text.label.reRender();
         }
+    
         this.svg.updateSvgPath(average, lineID, true);
 		this.compliance();
     }
