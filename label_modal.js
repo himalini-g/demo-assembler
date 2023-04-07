@@ -84,6 +84,19 @@ class Labels{
       .on('mousedown.drag', null)
       .on('touchstart.drag', null);
   }
+  export(){
+    const edgeDict = {};
+    edgeDict[""] = [];
+    this.nodes.forEach(node => {
+      edgeDict[""].push(node.id);
+      edgeDict[node.id] = [];
+    })
+    this.links.forEach(link => {
+      edgeDict[link.source.id].push(link.target.id);
+      edgeDict[link.target.id].push(link.source.id);
+    });
+    return edgeDict;
+  }
 
   showError(error){
     document.getElementById(this.labelErrorDisplayPID).innerHTML = error;
@@ -161,9 +174,7 @@ class Labels{
     this.restart();
   }
   destroy(){
-    console.log("destroying");
     d3.select('#graph').remove();
-    
   }
   mousemove() {
     if(this.canDrag) return;
@@ -283,6 +294,7 @@ class Labels{
       case 46: // delete
         if(this.selected_node) {
           this.nodes.splice(this.nodes.indexOf(this.selected_node), 1);
+          thumbnailsobj.removeLabel(this.selected_node.id);
           this.spliceLinksForNode(this.selected_node);
         } else if(this.selected_link) {
           this.links.splice(this.links.indexOf(this.selected_link), 1);
@@ -367,30 +379,29 @@ class Labels{
 class AssignLabel{
   constructor(){
     this.dropDowns = () => document.getElementsByClassName("dropdown-content");
-    window.onclick = function(event) {
-      if (!event.target.matches('#assign-label')) {
-        var dropdowns = document.getElementsByClassName("dropdown-content");
-        var i;
-        for (i = 0; i < dropdowns.length; i++) {
-          var openDropdown = dropdowns[i];
-          if (openDropdown.classList.contains('show')) {
-            openDropdown.classList.remove('show');
-          }
-        }
-      }
-    }
+    this.nodes = {};
   }
   render(nodes){
+    this.nodes = {};
     var dropDownDiv =  document.getElementById("label-dropdown");
     dropDownDiv.innerHTML = "";
     nodes.forEach(node => {
       var text = document.createElement('p');
       text.innerHTML = node.id;
+      text.onclick = () => {
+        orientlinemode.assignLabel(select.selected, node.id)
+      };
       dropDownDiv.appendChild(text);
+      this.nodes[node.id] = text;
     });
   }
   toggleDropDown(){
     document.getElementById("label-dropdown").classList.toggle("show");
+  }
+  closeDropdown(){
+    if (document.getElementById("label-dropdown").classList.contains('show')) {
+      document.getElementById("label-dropdown").classList.remove('show');
+    }
   }
 }
 
@@ -425,3 +436,8 @@ window.onclick = function(event) {
   }
 }
 
+window.onclick = function(event) {  
+  if (!event.target.matches('#assign-label')) {
+    assignlabels.closeDropdown()
+  }
+}

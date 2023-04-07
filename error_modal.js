@@ -1,5 +1,5 @@
 var modal = document.getElementById("error-modal");
-console.log(modal);
+
 
 
 // Get the <span> element that closes the modal
@@ -8,7 +8,6 @@ var modalText = document.getElementById("modal-text");
 
 // When the user clicks the button, open the modal 
 function openModal(text = ""){
-  console.log(modal);
   modal.style.display = "block";
   modalText.innerHTML = text;
 }

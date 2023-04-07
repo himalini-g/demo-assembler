@@ -100,7 +100,7 @@ function makeStack(drawingJSONs, recLim, attachments, width, height) {
         var newDrawingIndex = drawingOptionsIndexes.pop();
         var newDrawing = assemblage.deepCopies()[newDrawingIndex];
         var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
-        var newPoints = newDrawing.getOrientIndexOptions(labelOptions);
+        var newPoints = shuffleArray(newDrawing.getOrientIndexOptions(labelOptions));
      
         while(newPoints.length > 0){
           var newPoint = newPoints.pop();
@@ -139,17 +139,18 @@ class Drawing {
     this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("border")));
     this.polygonBorder = this.polygonBorder.flat(1);
     this.polygonBorder.push(this.polygonBorder[0]);
-    this.orient = JSON.parse(JSON.stringify(object.getLayerAssembler("orient")));
+    this.orient = JSON.parse(JSON.stringify(object.getOrientLayer("orient")));
+    this.orientLabels = JSON.parse(JSON.stringify(object.getLabels()));
     this.orientLines = [];
     this.attachments = attachments;
 
     for(var i = 0; i< this.orient.length; i++){
         var orientLine = {
-          opening: this.orient[i].slice(0, 2),
-          vector: this.getRay(this.orient[i].slice(0, 2)),
+          opening: this.orient[i].points.slice(0, 2),
+          vector: this.getRay(this.orient[i].points.slice(0, 2)),
           attachedDrawing: false,
           //TODO: fix,
-          label: Object.keys(this.attachments)[0],
+          label: this.orientLabels[this.orient[i].id],
           index: i,
         }
         this.orientLines.push(orientLine)
@@ -251,7 +252,6 @@ class Drawing {
       const x2 = v2[1].x - v2[0].x;
       const y1 = v1[1].y - v1[0].y;
       const y2 = v2[1].y - v2[0].y;
-
       return x1 * x2 + y1 * y2
     }
     const magnitude = (v) => {
@@ -355,11 +355,7 @@ function draw_svg(element, polylines){
 
 var id = "assembler-svg";
 
-function assemblerSetup(drawings, width, height){
-  const attachments = {
-    'LIMB': ['MOUTH', 'LIMB'],
-    'MOUTH': ['LIMB', 'MOUTH'],
-  };
+function assemblerSetup(drawings, attachments, width, height){
   var recLim = 10;
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
