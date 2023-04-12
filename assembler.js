@@ -108,16 +108,6 @@ class Assemblage{
   }
 }
 
-function stepInit(assemblage){
-  var initIndexes = assemblage.shuffledDrawingIndexes();
-  if(initIndexes.length == 0){
-    return [false, assemblage];
-  }
-  let drawingObj = assemblage.deepCopies()[initIndexes.pop()];
-  assemblage.renderStack.push(drawingObj);
-  return [true, assemblage];
-}
-
 function stackInit(assemblage){
   var initIndexes = assemblage.shuffledDrawingIndexes();
   if(initIndexes.length == 0){
@@ -154,78 +144,6 @@ function listCandidateOpenings(assemblage, unfilledOpening, candidateIndex){
   var candidateOrientOptions = candidateDrawing.getOrientIndexOptions(labelOptions);
   return candidateOrientOptions;
 }
-class stepStack{
-  constructor(drawingJSONs, recLim, attachments, width, height, autoscale){
-    this.assemblage= new Assemblage(drawingJSONs, recLim, attachments, width, height);
-    this.canStep = true;
-    this.canStep = stepInit(this.assemblage);
-    this.openings = listUnfilledOpenings(this.assemblage);
-    this.candidateIndices = this.assemblage.shuffledDrawingIndexes();
-    this.candidateOpenings = [];
-    this.autoscale = autoscale;
-    this.oI = 0;
-    this.cI = 0;
-    this.cOI = 0;
-    
-  }
-  stepOpening(){
-    if(!this.canStep){
-      return;
-    }
-    if(this.openings.length == 0){
-      this.canStep = false;
-      return;
-    } else {
-      this.oI = (this.oI + 1) % this.openings.length;
-      var opening = this.openings[this.oI];
-      this.candidateOpenings = listCandidateOpenings(this.assemblage, opening, this.cI);
-      this.cOI = 0;
-      visualize(this.assemblage);
-    }
-  }
-  
-  newCandidate(){
-    var opening = this.openings[this.oI];
-    this.cI = (this.cI + 1) % this.candidateIndices.length;
-    this.candidateOpenings = listCandidateOpenings(this.assemblage, opening, this.cI);
-    this.cOI = 0;
-    this.rotateCandidate();
-    visualize(this.assemblage);
-  }
-  rotateCandidate(){
-    this.cOI = (this.cOI + 1) % this.candidateOpenings.length;
-    var opening = this.openings[this.oI];
-    var drawing = this.assemblage.renderStack[opening.drawingIndex];
-    var candidate = this.assemblage.deepCopies()[this.cI];
-
-
-    drawing.finewDrawing(candidate, opening.orientIndex, this.candidateOpenings[this.cOI], this.autoscale);
-   
-    this.assemblage.tempDrawing = candidate;
-    visualize(this.assemblage);
-    
-  }
-  acceptCandidate(){
-    if(this.assemblage.tempDrawing == null){
-      return;
-    }
-    var opening = this.openings[this.oI];
-    var candidateOpening = this.candidateOpenings[this.cI];
-    
-    this.assemblage.renderStack[opening.drawingIndex].orientLines[opening.orientIndex].attachedDrawing = true;
-    this.assemblage.tempDrawing.orientLines[candidateOpening].attachedDrawing = true;
-    this.assemblage.renderStack.push(this.assemblage.tempDrawing);
-    this.assemblage.tempDrawing = null;
-    
-    this.openings = listUnfilledOpenings(this.assemblage);
-    this.oI = 0;
-    this.cI = 0;
-    // this.stepOpening();
-
-    visualize(this.assemblage);
-
-  }
-}
 
 function makeStack(assemblage, autoscale) {
   //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
@@ -255,7 +173,7 @@ function makeStack(assemblage, autoscale) {
             assemblage.addDrawingToAssemblage(newDrawing);
             drawing.orientLines[i].attachedDrawing = true;
             newDrawing.orientLines[newPoint].attachedDrawing = true;
-            visualize(assemblage);
+            // visualize(assemblage);
             // animationTimeout(200).then(() => { console.log("World!"); });
             
           } else{
@@ -269,7 +187,7 @@ function makeStack(assemblage, autoscale) {
     assemblage.recursiveLimit -= 1;
     
   }
-  visualize(assemblage);
+  // visualize(assemblage);
   
   return assemblage;
 }
@@ -504,8 +422,8 @@ function addRandomNewTree(assemblage, autoscale, element){
   let outside = true;
   while(outside && initIndexes.length > 0 ){
     drawingObj = assemblage.deepCopies()[initIndexes.pop()];
-    const tx = Math.random() * (Math.abs(assemblage.bbox[1].x - assemblage.bbox[0].x) + assemblage.bbox[0].x);
-    const ty = Math.random() * (Math.abs(assemblage.bbox[1].y - assemblage.bbox[0].y) + assemblage.bbox[0].y);
+    const tx = (Math.random() * Math.abs(assemblage.bbox[1].x - assemblage.bbox[0].x)) + assemblage.bbox[0].x;
+    const ty = (Math.random() * Math.abs(assemblage.bbox[1].y - assemblage.bbox[0].y)) + assemblage.bbox[0].y;
     const tMat = translateMatrix(tx, ty);
     const xformDrawing = line => {
       return xformLine(line, tMat)
@@ -533,22 +451,31 @@ function assemblerSetup(drawings, attachments, width, height){
   let [init, assemblage] = stackInit(assemblageObj);
   if(init){
     assemblage = makeStack(assemblage, autoscale);
+    assemblage.fitToCanvas();
     assemblage.setRect();
     assemblage.checkRect = true;
-    document.getElementById("add-tree").onclick = () =>{
-      assemblage.recursiveLimit = recLim;
-      addRandomNewTree(assemblage, autoscale, element);
-      assemblerElement = element;
-      var polyLines = draw(assemblage);
-      draw_svg(element, polyLines, assemblage.xform, );
-
-    }
+ 
     
     // assemblage.recursiveLimit = recLim;
     // addRandomNewTree(assemblage, autoscale, element);
     var polyLines = draw(assemblage);
     // assemblage.postProcess();
     draw_svg(element, polyLines, assemblage.xform, );
+
+    document.getElementById("add-tree").onclick = () =>{
+      container.innerHTML = ""
+      var element = SVGElement(width, height, width, height, "svg", assemblageSVGId);
+      container.appendChild(element);
+      assemblage.recursiveLimit = recLim;
+      addRandomNewTree(assemblage, autoscale, element);
+      assemblage.fitToCanvas();
+      
+      var polyLines = draw(assemblage);
+      console.log(assemblage.xform)
+      draw_svg(element, polyLines, assemblage.xform, );
+      assemblerElement = element;
+
+    }
   }
   return element;
   
