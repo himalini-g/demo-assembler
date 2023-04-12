@@ -1,5 +1,5 @@
 const debug = false;
-const recLim = 50;
+const recLim = 100;
 
 function draw(assemblage, visualize=false){
     var polyLines = [];
@@ -535,12 +535,19 @@ function assemblerSetup(drawings, attachments, width, height){
     assemblage = makeStack(assemblage, autoscale);
     assemblage.setRect();
     assemblage.checkRect = true;
-    assemblage.recursiveLimit = recLim;
-    addRandomNewTree(assemblage, autoscale, element);
-    assemblage.recursiveLimit = recLim;
-    addRandomNewTree(assemblage, autoscale, element);
+    document.getElementById("add-tree").onclick = () =>{
+      assemblage.recursiveLimit = recLim;
+      addRandomNewTree(assemblage, autoscale, element);
+      assemblerElement = element;
+      var polyLines = draw(assemblage);
+      draw_svg(element, polyLines, assemblage.xform, );
+
+    }
+    
+    // assemblage.recursiveLimit = recLim;
+    // addRandomNewTree(assemblage, autoscale, element);
     var polyLines = draw(assemblage);
-    assemblage.postProcess();
+    // assemblage.postProcess();
     draw_svg(element, polyLines, assemblage.xform, );
   }
   return element;
