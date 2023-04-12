@@ -9,7 +9,7 @@ function setup(passedSVG=null){
     svg = new Svg(svgElement, "tile_" + tileCounter.toString(),  LAYERSELECTED, layerInfo, outlineLayer, orientLayer ,invalidCSS);
     if(passedSVG != null){
         svg = passedSVG;
-        svg.prepareToSave();
+        svg.unmount();
         svg.addNewElement(svgElement);
         svg.element = svgElement;
     }
@@ -82,12 +82,16 @@ function setup(passedSVG=null){
             select.deleteSelected();
         }
     });
+    console.log(layerthumbnails);
+    layerthumbnails.layerChange[constructionLayer]();
 }
 
 function rerenderAssemblage(){
     assemblerElement = assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight);
 }
-
+function startAdvanced(){
+    assemblerElement = controlAssemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight);
+}
 
 function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeight=75,  htmlClass="svg", id){
     var xmlns = "http://www.w3.org/2000/svg";
@@ -133,6 +137,7 @@ class SvgUI{
         this.selectedCSS = selectedCSS
         this.layerDivElement =  document.getElementById(this.layerDivID)
         this.modeButtons = {}
+        this.layerChange = {};
         this.modeEventListener = {}
         this.destroyLambda = () => {
             var layerContainer = document.getElementById(this.layerDivID);
@@ -155,19 +160,10 @@ class SvgUI{
             var thumbnailElem = document.getElementById(layer.name);
             this.layerElements[layer.name] = thumbnailElem;
             this.layerDivElements[layer.name] = thumbnailDIV;
-            this.layerDivs
-            thumbnailDIV.addEventListener("mousedown", this.changeLayerLambda(layer.name, thumbnailDIV ), false, );
+            this.layerChange[layer.name] =  this.changeLayerLambda(layer.name, thumbnailDIV);
+            thumbnailDIV.addEventListener("mousedown", this.layerChange[layer.name], false, );
             clearButton.onclick = this.clearLayerLambda(layer.name);
         });
-    }
-    addLabel(){
-
-    }
-    deleteLabel(){
-
-    }
-    changeLabel(){
-
     }
     changeModeLambda(modeName, modeButton){
         const changeMode = e =>{
@@ -229,12 +225,12 @@ class Thumbnails{
         this.thumbnailDivs = {};
         this.sessionStorageKey = sessionStorageKey;
         this.resetLambda = resetLambda;
-    
+
         if(sessionStorage.getItem(this.sessionStorageKey)){
-            this.loadFromSessionStorage();
+            this.loadFile(JSON.parse(sessionStorage.getItem(this.sessionStorageKey)));
         }
-         
     }
+
     removeLabel(label){
         Object.entries(this.thumbnails).forEach(([_, nail]) => {
             nail.removeLabel(label);
@@ -243,15 +239,16 @@ class Thumbnails{
         svg.removeLabel(label);
         svg.reRender();
     }
-    loadFromSessionStorage(){
-        var project = JSON.parse(sessionStorage.getItem(this.sessionStorageKey));
-        Object.entries(project).forEach(([key, svgJSON], index) => {
+    loadFile(project){
+
+        Object.entries(project.drawings).forEach(([key, svgJSON], index) => {
             // var svgElement = SVGElement(width, height, width, height, "svg", index.toString());
             var svgClass =  new Svg(null, svgJSON.name,  constructionLayer, layerInfo, outlineLayer, orientLayer , invalidCSS);
             svgClass.fromJSON(svgJSON);
       
             this.addThumbnail(svgClass);
-        })
+        });
+        labelmanager.fromJson(project.labels)
         this.render();
 
     }
@@ -273,7 +270,7 @@ class Thumbnails{
         var thumbnailElement = document.getElementById(id);
         this.thumbnailDivs[thumbnailDIV.id] = thumbnailDIV;
         
-        svg.prepareToSave();
+        svg.unmount();
         svg.addNewElement(thumbnailElemNS);
         svg.element = thumbnailElemNS;
         this.thumbnails[thumbnailElement.id] = svg;
@@ -296,7 +293,7 @@ class Thumbnails{
     }
     editDrawingLambda(svg){
         const editDrawing = (e) =>{
-            svg.prepareToSave();
+            svg.unmount();
             setup(svg);
         }
         return editDrawing
@@ -329,9 +326,14 @@ class Thumbnails{
     }
     downloadProject(){
             var exportName = "project_file"
+            var project = {
+                labels: labelmanager.export(),
+                drawings: this.thumbnails,
+            }
             //https://stackoverflow.com/questions/19721439/download-json-object-as-a-file-from-browser
-            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.thumbnails));
-            sessionStorage.setItem(this.sessionStorageKey, JSON.stringify(this.thumbnails));
+
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
+            sessionStorage.setItem(this.sessionStorageKey, JSON.stringify(project));
             var downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href",     dataStr);
             downloadAnchorNode.setAttribute("download", exportName + ".json");
@@ -345,6 +347,21 @@ function downloadAssemblage(){
     if(assemblerElement){
         downloadSVG(assemblerElement, "assemblage")
     }
+}
+async function parseJsonFile(file) {
+    return new Promise((resolve, reject) => {
+      const fileReader = new FileReader()
+      fileReader.onload = event => resolve(JSON.parse(event.target.result))
+      fileReader.onerror = error => reject(error)
+      fileReader.readAsText(file)
+    })
+  }
+
+async function loadJSON(){
+    var file = document.getElementById("load-project").files[0];
+    const object = await parseJsonFile(file);
+    console.log(object);
+    thumbnailsobj.loadFile(object, toParse=false);
 }
 
 function saveTile(){
@@ -369,7 +386,7 @@ var tileCounter = 0;
 const width = 800;
 const height = 600;
 const assemblageWidth = 800;
-const assemblageHeight = 1800;
+const assemblageHeight = 600;
 const thumbnailHeight = Math.ceil(height / 4);
 const thumbnailWidth = Math.ceil(width / 4);
 const thumbnailDivClass = "thumbnail-container"
@@ -412,7 +429,7 @@ var select = null;
 var layerthumbnails = null;
 var selectpointsmode = null;
 var orientlinemode = null;
-var assemblerElement = assemblerStart(width, height);
+var assemblerElement = assemblerSetup([], {}, width, height);
 const layerInfo = 
 [
     {

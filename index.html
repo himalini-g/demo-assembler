@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script type="text/javascript" src="http://polyk.ivank.net/polyk.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js" integrity="sha512-VW8/i4IZkHxdD8OlqNdF7fGn3ba0+lYqag+Uy4cG6BtJ/LIr8t23s/vls70pQ41UasHH0tL57GQfKDApqc9izA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://d3js.org/d3.v3.min.js"></script>
     <meta charset="utf-8" />
   </head>
@@ -66,7 +67,17 @@
         <button onclick="rerenderAssemblage()"> <i class="fa fa-refresh" aria-hidden="true"></i> regenerate</button>
         <button onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
         <button onclick="downloadProject()">  <i class="fa fa-floppy-o" aria-hidden="true"></i> download project</button>
-        <button onclick="loadProject()">  <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
+        <button onclick> <input type="file" id="load-project" onchange="loadJSON()" accept=".json"/> <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
+        <button onclick="startAdvanced()"> init advanced</button>
+        <button id="new-opening">new opening</button>
+        <button id="new-candidate">new candidate</button>
+        <button id="rotate-candidate">rotate candidate</button>
+        <button id="accept-candidate">accept candidate</button>
+        <div>
+          <input type="checkbox" id="autoscale-check" name="autoscale">
+          <label for="autoscale">autoscale</label><br>
+        </div>
+       
       </div>
       <div id="assembler-svg-container" class="svg-container">
       </div>
@@ -83,7 +94,8 @@
     <script src="select.js"></script>
     <script src="assembler.js"></script>
     <script src="tile_making.js"></script>
-    <script src="script.js"></script>
     <script src="label_modal.js"></script>
+    <script src="script.js"></script>
+    
   </body>
 </html>

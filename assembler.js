@@ -1,10 +1,14 @@
-
 const debug = false;
-function draw(renderStack){
+const recLim = 50;
+
+function draw(assemblage, visualize=false){
     var polyLines = [];
-    for(var l = 0; l< renderStack.length; l++){
-        var drawing = renderStack[l];
+    for(var l = 0; l< assemblage.renderStack.length; l++){
+        var drawing = assemblage.renderStack[l];
         polyLines.push(...drawing.getLines());
+    }
+    if(assemblage.tempDrawing != null && visualize){
+      polyLines.push(...assemblage.tempDrawing.getLines());
     }
     return polyLines;
 }
@@ -17,7 +21,6 @@ const P2ArrayToArray = arr => arr.reduce((acc, point)=> {
 }, []);
 class Assemblage{
   constructor(drawingJSONS, recursiveLimit, attachments, width, height){
-   
     this.width = width;
     this.height = height; 
     this.referenceDrawingJsons = drawingJSONS;
@@ -25,7 +28,30 @@ class Assemblage{
     this.attachments = attachments;
     this.drawingStack = [];
     this.renderStack = [];
-
+    this.tempDrawing = null;
+    this.xform = "";
+    this.checkRect = false;
+    this.bbox = null;
+  }
+  checkIntersect(newDrawing){
+    var polygonList = this.getPolygonBorders();
+    var b = polygonList.some(polygon => {
+      var inside = intersect(newDrawing.polygonBorder, polygon);
+      return inside.length != 0;
+    })
+    if(this.checkRect){
+      return !b && this.checkInRect(newDrawing);
+    }
+    return !b;
+  }
+  checkInRect(newDrawing){
+    var b = newDrawing.polygonBorder.every(point => {
+      if((this.bbox[0].x <= point.x && point.x <=this.bbox[1].x ) && (this.bbox[0].y <= point.y && point.y <= this.bbox[1].y)){
+        return true;
+      }
+      return false;
+    });
+    return b;
   }
   deepCopies(){
     return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
@@ -37,56 +63,174 @@ class Assemblage{
       return this.referenceDrawingJsons.map((_, index)=>index);
     }
   }
-  shuffledDeepCopies(){
-    var drawings = this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
-    if(!debug){
-      return shuffleArray(drawings);
-    } else {
-      return drawings;
-    }
-    
-  }
   addDrawingToAssemblage(drawing){
     this.renderStack.push(drawing);
-    this.drawingStack.unshift(drawing);  
-    
+    this.drawingStack.unshift(drawing);
   }
   getPolygonBorders(){
     var borders = this.renderStack.map(drawing => drawing.polygonBorder);
    
     return borders;
   }
-  randomDrawing(){
-    if(!debug){
-      var randomReferenceJson = this.referenceDrawingJsons[randomInteger(0, this.referenceDrawingJsons.length)];
-      return new Drawing(randomReferenceJson, this.attachments);
-    } else{
-      return new Drawing(this.referenceDrawingJsons[0], this.attachments);
+  setRect(){
+    var lineList =  this.renderStack.map(drawing => drawing.lines);
+    if(this.tempDrawing != null){
+      lineList.push(this.tempDrawing.lines);
+  
     }
-   
-  }
-  fitToCanvas(){
-    var newLineList = this.renderStack.map(drawing => drawing.lines).flat(2);
+    var newLineList = lineList.flat(2);
     var bBox = get_bbox(newLineList);
     var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
-    for(var l = 0; l< this.renderStack.length; l++){
-      var processingLamba = function (line) {
-        return linePostProcessing(line, bBox[0].x, bBox[0].y, scalingFactor);
-      };
-      this.renderStack[l].applyLambdaToLines(processingLamba);
-    }
+    const tMat = translateMatrix( bBox[0].x,  bBox[0].y);
+    const scMat = scaleMatrix(1.0 / scalingFactor, 1.0 /  scalingFactor);
+    const cMat = composeTransforms([scMat, tMat]);
+    this.bbox = xformLine([{x: 0, y: 0}, {x: this.width, y: this.height}], cMat);
+    console.log(this.bbox, bBox);
+  }
+  fitToCanvas(){
+    var lineList =  this.renderStack.map(drawing => drawing.lines);
+    if(this.tempDrawing != null){
+      lineList.push(this.tempDrawing.lines);
   
+    }
+    var newLineList = lineList.flat(2);
+    var bBox = get_bbox(newLineList);
+    var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
+    const tMat = translateMatrix(-1 * bBox[0].x, -1 * bBox[0].y);
+    const scMat = scaleMatrix(scalingFactor, scalingFactor);
+    const cMat = composeTransforms([tMat, scMat]);
+    this.xform = xformToString(cMat);
+  }
+  postProcess(){
+    this.renderStack.forEach(drawing => {
+      drawing.applyLambdaToLines(linePostProcessing)
+    })
   }
 }
 
-function makeStack(drawingJSONs, recLim, attachments, width, height) {
-  let assemblage = new Assemblage(drawingJSONs, recLim, attachments, width, height);
-  //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
-  let drawingObj = assemblage.randomDrawing();
+function stepInit(assemblage){
+  var initIndexes = assemblage.shuffledDrawingIndexes();
+  if(initIndexes.length == 0){
+    return [false, assemblage];
+  }
+  let drawingObj = assemblage.deepCopies()[initIndexes.pop()];
+  assemblage.renderStack.push(drawingObj);
+  return [true, assemblage];
+}
+
+function stackInit(assemblage){
+  var initIndexes = assemblage.shuffledDrawingIndexes();
+  if(initIndexes.length == 0){
+    return [false, assemblage];
+  }
+  let drawingObj = assemblage.deepCopies()[initIndexes.pop()];
   assemblage.addDrawingToAssemblage(drawingObj);
+  return [true, assemblage];
+}
 
 
-  while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0){
+function listUnfilledOpenings(assemblage){
+  var openings = [];
+  assemblage.renderStack.forEach((drawing, drawingIndex) => {
+    drawing.orientLines.forEach((line, orientIndex) => {
+      if(line.attachedDrawing == false ){
+        openings.push({
+          drawingIndex: drawingIndex,
+          orientIndex: orientIndex,
+          lineLabel: line.label,
+        });
+      }
+    });
+  });
+  return openings;
+}
+function listCandidateOpenings(assemblage, unfilledOpening, candidateIndex){
+  
+  var drawing = assemblage.renderStack[unfilledOpening.drawingIndex];
+  var index = unfilledOpening.orientIndex
+  var drawingOpening = drawing.orientLines[index];
+  var candidateDrawing = assemblage.deepCopies()[candidateIndex];
+  var labelOptions = assemblage.attachments[drawingOpening.label];
+  var candidateOrientOptions = candidateDrawing.getOrientIndexOptions(labelOptions);
+  return candidateOrientOptions;
+}
+class stepStack{
+  constructor(drawingJSONs, recLim, attachments, width, height, autoscale){
+    this.assemblage= new Assemblage(drawingJSONs, recLim, attachments, width, height);
+    this.canStep = true;
+    this.canStep = stepInit(this.assemblage);
+    this.openings = listUnfilledOpenings(this.assemblage);
+    this.candidateIndices = this.assemblage.shuffledDrawingIndexes();
+    this.candidateOpenings = [];
+    this.autoscale = autoscale;
+    this.oI = 0;
+    this.cI = 0;
+    this.cOI = 0;
+    
+  }
+  stepOpening(){
+    if(!this.canStep){
+      return;
+    }
+    if(this.openings.length == 0){
+      this.canStep = false;
+      return;
+    } else {
+      this.oI = (this.oI + 1) % this.openings.length;
+      var opening = this.openings[this.oI];
+      this.candidateOpenings = listCandidateOpenings(this.assemblage, opening, this.cI);
+      this.cOI = 0;
+      visualize(this.assemblage);
+    }
+  }
+  
+  newCandidate(){
+    var opening = this.openings[this.oI];
+    this.cI = (this.cI + 1) % this.candidateIndices.length;
+    this.candidateOpenings = listCandidateOpenings(this.assemblage, opening, this.cI);
+    this.cOI = 0;
+    this.rotateCandidate();
+    visualize(this.assemblage);
+  }
+  rotateCandidate(){
+    this.cOI = (this.cOI + 1) % this.candidateOpenings.length;
+    var opening = this.openings[this.oI];
+    var drawing = this.assemblage.renderStack[opening.drawingIndex];
+    var candidate = this.assemblage.deepCopies()[this.cI];
+
+
+    drawing.finewDrawing(candidate, opening.orientIndex, this.candidateOpenings[this.cOI], this.autoscale);
+   
+    this.assemblage.tempDrawing = candidate;
+    visualize(this.assemblage);
+    
+  }
+  acceptCandidate(){
+    if(this.assemblage.tempDrawing == null){
+      return;
+    }
+    var opening = this.openings[this.oI];
+    var candidateOpening = this.candidateOpenings[this.cI];
+    
+    this.assemblage.renderStack[opening.drawingIndex].orientLines[opening.orientIndex].attachedDrawing = true;
+    this.assemblage.tempDrawing.orientLines[candidateOpening].attachedDrawing = true;
+    this.assemblage.renderStack.push(this.assemblage.tempDrawing);
+    this.assemblage.tempDrawing = null;
+    
+    this.openings = listUnfilledOpenings(this.assemblage);
+    this.oI = 0;
+    this.cI = 0;
+    // this.stepOpening();
+
+    visualize(this.assemblage);
+
+  }
+}
+
+function makeStack(assemblage, autoscale) {
+  //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
+  
+  while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
     // pops a drawings off the stack
     var drawing = assemblage.drawingStack.pop(0);
     
@@ -98,37 +242,36 @@ function makeStack(drawingJSONs, recLim, attachments, width, height) {
       while(drawing.orientLines[i].attachedDrawing == false && drawingOptionsIndexes.length  > 0 ){
      
         var newDrawingIndex = drawingOptionsIndexes.pop();
-        var newDrawing = assemblage.deepCopies()[newDrawingIndex];
         var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
-        var newPoints = shuffleArray(newDrawing.getOrientIndexOptions(labelOptions));
+        var newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
      
         while(newPoints.length > 0){
           var newPoint = newPoints.pop();
           var newDrawing = assemblage.deepCopies()[newDrawingIndex];
-          drawing.finewDrawing(newDrawing, i, newPoint);
-          var polygonList = assemblage.getPolygonBorders();
-          var b = polygonList.some(polygon => {
-            var inside = intersect(newDrawing.polygonBorder, polygon);
-            return inside.length != 0;
-          })
-          if(!b){
+          drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
+          var b = assemblage.checkIntersect(newDrawing);
+          if(b){
             
             assemblage.addDrawingToAssemblage(newDrawing);
             drawing.orientLines[i].attachedDrawing = true;
             newDrawing.orientLines[newPoint].attachedDrawing = true;
-    
-
+            visualize(assemblage);
+            // animationTimeout(200).then(() => { console.log("World!"); });
+            
           } else{
             newDrawing = null;
           }
+         
         }
        
       }
     }
     assemblage.recursiveLimit -= 1;
+    
   }
-  assemblage.fitToCanvas();
-  return assemblage.renderStack;
+  visualize(assemblage);
+  
+  return assemblage;
 }
 
 
@@ -218,7 +361,7 @@ class Drawing {
   getLines(){
     
     var retLines = JSON.parse(JSON.stringify(this.lines));
-    // var retLines = JSON.parse(JSON.stringify(this.lines));
+    
     if(debug){
       var orientLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.opening)));
       var vectorLines = JSON.parse(JSON.stringify(this.orientLines.map(orient => orient.vector)));
@@ -243,61 +386,54 @@ class Drawing {
     this.polygonBorder = lambda(this.polygonBorder);
   }
   
-  finewDrawing(newDrawing, thisOrientationIndex, newDrawingIndex){
+  finewDrawing(newDrawing, thisOrientationIndex, newDrawingIndex, autoscale){
     var target = this.orientLines[thisOrientationIndex]
     var start = newDrawing.orientLines[newDrawingIndex];
-    const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-    const dotProduct = (v1, v2) =>{
-      const x1 = v1[1].x - v1[0].x;
-      const x2 = v2[1].x - v2[0].x;
-      const y1 = v1[1].y - v1[0].y;
-      const y2 = v2[1].y - v2[0].y;
-      return x1 * x2 + y1 * y2
+
+    const toOrigin = (v) =>{
+      return {
+        x: v[1].x - v[0].x, 
+        y: v[1].y - v[0].y
+      }
     }
+  
     const magnitude = (v) => {
       const y = v[1].y - v[0].y;
       const x = v[1].x - v[0].x;
       return Math.sqrt((y * y) + (x * x))
     }
 
-    // get angle between the new drawing orientation vector and this drawing's vector
-  
-
-    const numerator = dotProduct(target.vector,start.vector );
-    const denom = magnitude(target.vector) * magnitude(start.vector);
-    const cosTheta = clamp(numerator / denom, -1.0, 1.0);
-
     const targetOrientMag = magnitude(target.opening);
     const startOrientMag = magnitude(start.opening);
     // start size * (target size/ start size) = target size
-    const scaleToNorm = (line) => {
-      return scaleLine(line, 1.0 / startOrientMag);
-    }
-    const scaleToTarget = (line) =>{
-      return scaleLine(line, targetOrientMag);
-    }
-    const thetaRad = Math.acos(cosTheta)
-    // add 180 so that they rotate facing each other 
-    const rotationAngle = -1 * thetaRad + Math.PI;
-    const rotationMatrix = [
-      [Math.cos(rotationAngle), -1 * Math.sin(rotationAngle)],
-      [Math.sin(rotationAngle), Math.cos(rotationAngle)]
-    ]
-    const newDrawingToOriginLambda = (line) => {
-      return translateLine(line, start.vector[0].x, start.vector[0].y)
-    }
-    const newDrawingRotated = line => {
-      return rotateLine(line, rotationMatrix)
-    }
-    const newDrawingToTarget = line => {
-      return translateLine(line, target.vector[0].x * -1, target.vector[0].y * -1)
-    }
 
-    newDrawing.applyLambdaToLines(newDrawingToOriginLambda);
-    newDrawing.applyLambdaToLines(scaleToNorm);
-    newDrawing.applyLambdaToLines(scaleToTarget);
-    newDrawing.applyLambdaToLines(newDrawingRotated);
-    newDrawing.applyLambdaToLines(newDrawingToTarget);
+    const a = toOrigin(start.vector);
+    const b = toOrigin(target.vector);
+    const aTheta = math.atan2(a.y, a.x);
+    const bTheta = math.atan2(b.y, b.x);
+    const atan2Theta = aTheta - bTheta;
+   
+    // add 180 so that they rotate facing each other 
+    const rotationAngle = (-1 * atan2Theta) + Math.PI;
+  
+    const tMat1 = translateMatrix(-1 * start.vector[0].x, -1 * start.vector[0].y);
+    const scMat = scaleMatrix(targetOrientMag/ startOrientMag,targetOrientMag/ startOrientMag);
+    const rMat = rotationMatrix(rotationAngle);
+    const tMat2 = translateMatrix(target.vector[0].x, target.vector[0].y);
+    var matList = [];
+    if(autoscale){
+      matList = [tMat1, scMat, rMat, tMat2];
+    } else{
+      matList = [tMat1, rMat, tMat2]
+    }
+  
+    const transforms = composeTransforms(matList);
+
+    const xformDrawing = line => {
+      return xformLine(line, transforms)
+    }
+  
+    newDrawing.applyLambdaToLines(xformDrawing);
     return;
 
   }
@@ -305,79 +441,112 @@ class Drawing {
 /// ********** utils
 // averages points in line
 
-function linePostProcessing(line, x, y, scalingFactor){
-  line = scaleLine(translateLine(line, x, y), scalingFactor)
+function linePostProcessing(line){
+ 
   // line = resample(line, 1.0);
   if(line.length > 7){
     return firstOrderSmoothing(line);
   }
   return line;
-
 }
 
 
-// rotates point (x, y) by 2d rotation matrix rotationMatrix
-function rotateLine(line, rotationMatrix){
-  return line.map(p => rPwM(rotationMatrix, p.x, p.y))
+// applies matrix transform to point (x, y)
+function xformLine(line, rotationMatrix){
+  return line.map(p => xformPoint(rotationMatrix, p.x, p.y))
 }
-function rPwM(rotationMatrix, x, y){
-  var a = rotationMatrix[0][0]; //0
-  var b = rotationMatrix[0][1]; //-1
-  var c = rotationMatrix[1][0]; //1
-  var d = rotationMatrix[1][1]; //0
-  return {x: a *x + b *y, y: c*x + d*y};
-
+function xformPoint(xform, x, y){
+  const newX = xform[0][0] * x + xform[0][1] * y + xform[0][2];
+  const newY = xform[1][0] * x + xform[1][1] * y + xform[1][2];
+  return {x: newX, y: newY};
 }
 
-//https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
-
-
-function draw_svg(element, polylines){
+function draw_svg(element, polylines, matrix){
+  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  element.appendChild(g);
   var lineObjs = polylines.map((line, index) => {
     var lineObj = new Line("assembler_" + index.toString())
     lineObj.points = line;
     lineObj.reRender();
     return lineObj
   });
-  lineObjs.forEach(line => line.addToParentElement(element, "assembler"));
-
+  lineObjs.forEach(line => line.addToParentElement(g, "assembler"));
+  g.setAttribute("transform", matrix);
   return;
 }
 
-// function renderDebug(renderStack){
-//   var container = document.getElementById("assembler-svg-container");
-//   container.innerHTML = ""
-//   var element = SVGElement(width, height, width, height, "svg", id);
-//   container.appendChild(element);
-//   var polyLines = draw(renderStack);
-//   draw_svg(element, polyLines);
-// }
-
-var id = "assembler-svg";
-
-function assemblerSetup(drawings, attachments, width, height){
-  var recLim = 10;
+function visualize(assemblage){
+  assemblage.fitToCanvas();
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
-  var element = SVGElement(width, height, width, height, "svg", id);
+  var element = SVGElement(assemblage.width, assemblage.height, assemblage.width, assemblage.height, "svg", "assembler-svg");
   container.appendChild(element);
-  var toRender = makeStack(drawings, recLim, attachments, width, height);
-
-  var polyLines = draw(toRender);
-  draw_svg(element, polyLines, width, height, id);
-  return element;
+  var polyLines = draw(assemblage, true);
+  draw_svg(element, polyLines, assemblage.xform);
 }
-function assemblerStart(width, height){
 
+
+function controlAssemblerSetup(drawings, attachments, width, height){
+ 
+  var autoscale = document.getElementById("autoscale-check").checked;
+  var stepper = new stepStack(drawings, recLim, attachments, width, height, autoscale);
+  document.getElementById("new-opening").onclick = () => stepper.stepOpening();
+  document.getElementById("new-candidate").onclick = () => stepper.newCandidate();
+  document.getElementById("rotate-candidate").onclick = () => stepper.rotateCandidate();
+  document.getElementById("accept-candidate").onclick = () => stepper.acceptCandidate();
+
+  // document.getElementById()
+}
+function addRandomNewTree(assemblage, autoscale, element){
+  
+  var initIndexes = assemblage.shuffledDrawingIndexes();
+  let drawingObj = null;
+  let outside = true;
+  while(outside && initIndexes.length > 0 ){
+    drawingObj = assemblage.deepCopies()[initIndexes.pop()];
+    const tx = Math.random() * (Math.abs(assemblage.bbox[1].x - assemblage.bbox[0].x) + assemblage.bbox[0].x);
+    const ty = Math.random() * (Math.abs(assemblage.bbox[1].y - assemblage.bbox[0].y) + assemblage.bbox[0].y);
+    const tMat = translateMatrix(tx, ty);
+    const xformDrawing = line => {
+      return xformLine(line, tMat)
+    }
+    drawingObj.applyLambdaToLines(xformDrawing);
+    outside = !assemblage.checkIntersect(drawingObj);    
+  }
+  if(outside){
+    return
+  }
+  assemblage.addDrawingToAssemblage(drawingObj);
+  console.log(assemblage.drawingStack);
+  assemblage = makeStack(assemblage, autoscale);
+  var polyLines = draw(assemblage);
+  draw_svg(element, polyLines, assemblage.xform);
+}
+function assemblerSetup(drawings, attachments, width, height){
+  const assemblageSVGId = "assembler-svg";
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
-  var element = SVGElement(width, height, width, height, "svg", id);
+  var element = SVGElement(width, height, width, height, "svg", assemblageSVGId);
   container.appendChild(element);
-  return element; 
-
+  var autoscale = document.getElementById("autoscale-check").checked;
+  let assemblageObj = new Assemblage(drawings, recLim, attachments, width, height);
+  let [init, assemblage] = stackInit(assemblageObj);
+  if(init){
+    assemblage = makeStack(assemblage, autoscale);
+    assemblage.setRect();
+    assemblage.checkRect = true;
+    assemblage.recursiveLimit = recLim;
+    addRandomNewTree(assemblage, autoscale, element);
+    assemblage.recursiveLimit = recLim;
+    addRandomNewTree(assemblage, autoscale, element);
+    var polyLines = draw(assemblage);
+    assemblage.postProcess();
+    draw_svg(element, polyLines, assemblage.xform, );
+  }
+  return element;
+  
 }
 
 if (typeof(module) !== "undefined") {
 	module.exports.assemblerSetup = assemblerSetup;
-  module.exports.assemblerStart = assemblerStart;
 }

@@ -2,7 +2,7 @@ class SelectPoints{
     constructor(svg){
         this.svg = svg;
         this.element = this.svg.element;
-        this.tolerance = 2;
+        this.tolerance = 4;
         this.lineID = null;
         this.circleDict = {};
         this.circleTarget = null;

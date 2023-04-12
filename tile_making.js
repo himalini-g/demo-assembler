@@ -112,7 +112,6 @@ class Svg {
                 }
             })
         })
-
     }
     errorCheckOutline(){
         if(this.layerSelected != this.outlineLayerName ){
@@ -158,7 +157,7 @@ class Svg {
 			delete this.errors[outlineID];
 		}
     }
-	prepareToSave(){
+	unmount(){
 		Object.entries(this.layers).forEach(([_, layer]) => {
             Object.entries(layer).forEach(([_, line]) =>{
                 line.destroy();
@@ -361,14 +360,16 @@ class Svg {
             x: points[0].x + points[1].x, 
             y: points[0].y + points[1].y
         }
-        var x = Math.abs(points[0].x - points[1].x)
-        var y = Math.abs(points[0].y - points[1].y)
+        var x =points[0].x - points[1].x
+        var y = points[0].y - points[1].y
         const length = Math.sqrt(x * x + y * y);
+        const angle = Math.trunc(math.atan2(y, x) * 180 / Math.PI);
+        // console.log(angle);
         const average = {
             x: pointSum.x / 2.0,
             y: pointSum.y / 2.0
         }  
-        return [average, length];
+        return [average, length, angle];
     }
     deleteIDs(IDs){
         IDs.forEach(id =>{
@@ -438,8 +439,6 @@ class OutlineMode{
         this.svg = svg;
         this.selectpoints = selectpoints;
         this.selectingPoints = false;
-        this.errorcolor = "#FF0000"
-        this.error = false;
 		this.compliance = () => true;
 		this.text = null
     }
@@ -470,17 +469,13 @@ class OutlineMode{
     mouseMoveHandler(e){
         if(this.selectingPoints){
             this.selectpoints.mouseMoveHandler(e);
-            this.svg.errorCheckOutline();
             return;
         }
         
         this.svg.getLine(this.svg.getOutlineID()).removePoint();
         this.svg.updateSvgPath(e, this.svg.getOutlineID());
 		this.compliance();
-        this.svg.errorCheckOutline();
 		this.addTextToLastPoint();
-        
-       
     }
     mouseUpHandler(){
         if(this.selectingPoints){
@@ -545,7 +540,7 @@ class OrientLineMode{
     assignLabel(lines, label){
         if(this.svg.layerSelected == this.name){
             lines.forEach(line => {
-                var [average, _] =  this.svg.computeAverage(line.id);
+                var [average, _, _] =  this.svg.computeAverage(line.id);
                 var text = this.svg.getText(line.id);
                 if(text.label != null){
                     
@@ -558,12 +553,12 @@ class OrientLineMode{
         }
     }
     reComp(lineID){
-        const [average, length] =  this.svg.computeAverage(lineID);
+        const [average, length, degrees] =  this.svg.computeAverage(lineID);
         this.svg.getLine(lineID).removePoint();
         var text = this.svg.getText(lineID);
         if(text.length != null){
             text.length.point = average;
-            text.length.txt = Math.trunc(length).toString();
+            text.length.txt = Math.trunc(length).toString() + ", " + degrees.toString();
         } 
 
         if(text.label != null){
@@ -617,24 +612,18 @@ class OrientLineMode{
             this.selectpoints.mouseUpHandler();
             return;
         }
-        // edge case checking;
-        if(this.baseID != null && this.svg.checkMembership(this.baseID) == false){
-            this.baseID = null;
-            return;
-        } else if(this.baseID == null){
+  
+        if(this.baseID == null){
             return;
         }
 
         this.selectpoints.initSelection(this.baseID);  
-        if(this.svg.getLine(this.baseID).points.length < 2){
-            
-            this.svg.deleteIDs([this.baseID]);
-            this.baseID = null;
-        } else if(this.svg.getLine(this.baseID).points.length == 2){
-            var [average, length]  = this.svg.computeAverage(this.baseID);
+     
+        if(this.svg.getLine(this.baseID).points.length == 2){
+            var [average, length, degrees]  = this.svg.computeAverage(this.baseID);
             this.svg.updateSvgPath(average, this.baseID, true);
 			
-            this.svg.addText(average, Math.trunc(length).toString(), true, this.baseID);
+            this.svg.addText(average,  Math.trunc(length).toString() + ", " + degrees.toString(), true, this.baseID);
             this.baseID = null;
 			this.compliance();
         }

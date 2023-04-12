@@ -1,3 +1,4 @@
+
 class Labels{
   constructor(assignlabels){
     this.modalID = "enter-label";
@@ -17,6 +18,27 @@ class Labels{
       .attr('width', this.width)
       .attr('height', this.height)
       .attr('id', 'graph');
+    this.graphSvg.append('svg:defs').append('svg:marker')
+      .attr('id', 'end-arrow')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 6)
+      .attr('markerWidth',6)
+      .attr('markerHeight',6)
+      .attr('orient', 'auto')
+      .attr('class', 'marker-end')
+      .append('svg:path')
+      .attr('d', 'M0,-5L10,0L0,5');
+    this.graphSvg.append('svg:defs').append('svg:marker')
+      .attr('id', 'start-arrow')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 4)
+      .attr('markerWidth',6)
+      .attr('markerHeight',6)
+      .attr('class', 'marker-end')
+      .attr('orient', 'auto')
+      .append('svg:path')
+      .attr('d', 'M10,-5L0,0L10,5');
+
 
     this.nodes = [];
     this.links = [];
@@ -65,6 +87,7 @@ class Labels{
     this.assignlabels = assignlabels;
 
   }
+  
 
   moveMode(){
     this.canDrag = true;
@@ -86,18 +109,58 @@ class Labels{
   }
   export(){
     const edgeDict = {};
-    edgeDict[""] = [];
+    edgeDict[""] = [""];
     this.nodes.forEach(node => {
       edgeDict[""].push(node.id);
       edgeDict[node.id] = [];
+      if(/reflexive/.test(node.id)){
+        console.log(node.id);
+        edgeDict[node.id].push(node.id);
+      }
     })
     this.links.forEach(link => {
-      edgeDict[link.source.id].push(link.target.id);
-      edgeDict[link.target.id].push(link.source.id);
+      if(link.right){
+        edgeDict[link.source.id].push(link.target.id);
+      } if(link.left){
+        edgeDict[link.target.id].push(link.source.id);
+      }
     });
+    console.log(edgeDict);
     return edgeDict;
   }
 
+  fromJson(edgeDict){
+    Object.entries(edgeDict).forEach(([node, _]) => {
+      this.addLabel(node);
+    });
+  
+
+    this.restart();
+    // Object.entries(edgeDict).forEach(([node1, list]) => {
+    //   if(node1 != ""){
+        
+    //     list.forEach(node2 => {
+    //       if(node2 != node1){
+    //         console.log(node2, node1);
+    //         var link = this.links.some(function(l) {
+    //           return ((l.source.id === node1 && l.target === node2) || (l.source.id === node2 && l.target.id === node1));
+    //         });
+    //         console.log(link);
+    //         if(!link) {
+    //           const source = this.nodes.filter(node => node.id = node1);
+    //           const target = this.nodes.filter(node => node.id = node2);
+              
+    //           console.log(source, target);
+    //           link = {source: source, target: target};
+    //           this.links.push(link);
+
+    //       }
+          
+    //       }
+    //     });
+    //   }
+    // });
+  }
   showError(error){
     document.getElementById(this.labelErrorDisplayPID).innerHTML = error;
   }
@@ -108,7 +171,7 @@ class Labels{
 
   addLabel(uncleanedLabel){
     this.hideError();
-    var label = uncleanedLabel.value.replace(/[^a-z0-9]/gi, '');
+    var label = uncleanedLabel.replace(/[^a-z0-9]/gi, '');
     if(label == ""){
       this.showError("label cannot be empty string");
       return [false, "label cannot be empty string"];
@@ -122,16 +185,19 @@ class Labels{
     const rect = (this.graphSvg.node()).getBoundingClientRect();
     const x = Math.trunc((rect.right - rect.left) / 2);
     const y =  Math.trunc((rect.bottom - rect.top) / 2);
-    this.nodes.push({
+    var newNode = {
       id: label,
       x: x,
       y: y,
-    })
+      px: x,
+      py: y,
+      weight: 1,
+    }
+    this.nodes.push(newNode);
+
     this.render();
     this.assignlabels.render(this.nodes);
-    uncleanedLabel.value = "";
     return [true, null];
-
   }
 
   render(){
@@ -218,6 +284,7 @@ class Labels{
           sourceY = d.source.y + (sourcePadding * normY),
           targetX = d.target.x - (targetPadding * normX),
           targetY = d.target.y - (targetPadding * normY);
+     
       return 'M' + sourceX + ',' + sourceY + ' L' + targetX + ',' + targetY;
     });
     
@@ -248,13 +315,13 @@ class Labels{
 
 
     var link = this.links.filter(function(l) {
-
       return ((l.source === mousedown_node && l.target === mouseup_node) || (l.source === mouseup_node && l.target === mousedown_node));
     })[0];
-   
   
     if(!link) {
-      link = {source: this.mousedown_node, target: this.mouseup_node};
+      link = {source: this.mousedown_node, target: this.mouseup_node, left: false, right: true};
+      console.log(link);
+
       this.links.push(link);
     }
 
@@ -292,6 +359,7 @@ class Labels{
     switch(d3.event.keyCode) {
       case 8: // backspace
       case 46: // delete
+      console.log('hello')
         if(this.selected_node) {
           this.nodes.splice(this.nodes.indexOf(this.selected_node), 1);
           thumbnailsobj.removeLabel(this.selected_node.id);
@@ -303,6 +371,30 @@ class Labels{
         this.selected_node = null;
         this.restart();
         this.assignlabels.render(this.nodes);
+        break;
+      case 66: // B
+        if(this.selected_link) {
+          // set link direction to both left and right
+          this.selected_link.left = true;
+          this.selected_link.right = true;
+        }
+        this.restart();
+        break;
+      case 76: // L
+        if(this.selected_link) {
+          // set link direction to left only
+          this.selected_link.left = true;
+          this.selected_link.right = false;
+        }
+        this.restart();
+        break;
+      case 82: // R
+        if(this.selected_link) {
+          // set link direction to right only
+          this.selected_link.left = false;
+          this.selected_link.right = true;
+        }
+        this.restart();
         break;
 
     }
@@ -331,13 +423,18 @@ class Labels{
     // update existing links
   
     this.path.classed('selected', (d) =>  { return d === this.selected_link; })
+      .style('marker-start', function(d) { return d.left ? 'url(#start-arrow)' : ''; })
+      .style('marker-end', function(d) { return d.right ? 'url(#end-arrow)' : ''; });
   
   
     // add new links
     this.path.enter().append('svg:path')
       .attr('class', 'link')
       .classed('selected', (d) =>  { return d === this.selected_link; })
+      .style('marker-start', function(d) { return d.left ? 'url(#start-arrow)' : ''; })
+      .style('marker-end', function(d) { return d.right ? 'url(#end-arrow)' : ''; })
       .on('mousedown', (d) =>this.pathMouseDown(d));
+ 
   
     // remove old links
     this.path.exit().remove();
@@ -415,7 +512,11 @@ function toggleDropdown(){
 
 }
 function addLabel(){
-  labelmanager.addLabel(document.getElementById("label-text-input"));
+  var label = document.getElementById("label-text-input");
+  const [reset, _] = labelmanager.addLabel(label.value);
+  if(reset){
+    label.value = "";
+  }
 }
 
 // When the user clicks the button, open the modal 

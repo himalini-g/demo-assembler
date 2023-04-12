@@ -1,3 +1,48 @@
+function multiplyMatrices(m1, m2) {
+    var result = [];
+    for (var i = 0; i < m1.length; i++) {
+        result[i] = [];
+        for (var j = 0; j < m2[0].length; j++) {
+            var sum = 0;
+            for (var k = 0; k < m1[0].length; k++) {
+                sum += m1[i][k] * m2[k][j];
+            }
+            result[i][j] = sum;
+        }
+    }
+    return result;
+}
+function scaleMatrix(scaleX, scaleY){
+    return [[scaleX, 0.0, 0.0],
+            [0.0, scaleY, 0.0],
+            [0.0, 0.0, 1.0]];
+}
+function translateMatrix(dx, dy){
+    return [[1.0, 0.0, dx],
+            [0.0, 1.0, dy],
+            [0.0, 0.0, 1.0]];
+}
+function rotationMatrix(thetax){
+    return [
+        [Math.cos(thetax), -1 * Math.sin(thetax), 0],
+        [Math.sin(thetax), Math.cos(thetax), 0],
+        [0, 0, 1.0],
+    ];
+}
+
+function composeTransforms(transforms){
+    if(transforms.length == 0){
+        return [[1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0]];
+    }
+    return multiplyMatrices(composeTransforms(transforms.slice(1)), transforms[0]);
+}
+
+function xformToString(xform){
+    return `matrix(${xform[0][0]}, ${xform[1][0]}, ${xform[0][1]}, ${xform[1][1]}, ${xform[0][2]}, ${xform[1][2]})`
+}
+
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -120,18 +165,6 @@ function isect_circ_line(cx,cy,r,x0,y0,x1,y1){
     return t;
 }
 
-function scaleLine(l, scale){
-    var scaled = []
-    for(var j = 0; j< l.length; j++){
-        var point = l[j];
-        point = {x: point.x * scale, y:  point.y * scale}
-        scaled.push(point)
-    }
-    return scaled;
-}
-function translateLine(arr, x,y){
-    return arr.map(p => {return {x: p.x - x, y:  p.y - y}})
-}
 function dist(x1, y1, x2, y2){
     return Math.sqrt(((y2 - y1) * (y2 - y1)) + ((x2 - x1) * (x2 - x1)))
 }
@@ -244,9 +277,13 @@ if (typeof(module) !== "undefined") {
     module.exports.firstOrderSmoothing = firstOrderSmoothing;
     module.exports.resample = resample;
     module.exports.isect_circ_line = isect_circ_line;
-    module.exports.scaleLine =scaleLine;
-    module.exports.translateLine =translateLine;
     module.exports.dist = dist;
     module.exports.pointInPolygon = pointInPolygon;
+    module.exports.multiplyMatrices = multiplyMatrices;
+    module.exports.scaleMatrix = scaleMatrix;
+    module.exports.translateMatrix =translateMatrix;
+    module.exports.rotationMatrix = rotationMatrix;
+    module.exports.composeTransforms = composeTransforms;
+    module.exports.xformToString = xformToString;
 }
 
