@@ -415,7 +415,7 @@ function controlAssemblerSetup(drawings, attachments, width, height){
 
   // document.getElementById()
 }
-function addRandomNewTree(assemblage, autoscale, element){
+function addRandomNewTree(assemblage, autoscale){
   
   var initIndexes = assemblage.shuffledDrawingIndexes();
   let drawingObj = null;
@@ -432,13 +432,12 @@ function addRandomNewTree(assemblage, autoscale, element){
     outside = !assemblage.checkIntersect(drawingObj);    
   }
   if(outside){
-    return
+    return;
   }
   assemblage.addDrawingToAssemblage(drawingObj);
   console.log(assemblage.drawingStack);
   assemblage = makeStack(assemblage, autoscale);
-  var polyLines = draw(assemblage);
-  draw_svg(element, polyLines, assemblage.xform);
+  return;
 }
 function assemblerSetup(drawings, attachments, width, height){
   const assemblageSVGId = "assembler-svg";
@@ -463,18 +462,17 @@ function assemblerSetup(drawings, attachments, width, height){
     draw_svg(element, polyLines, assemblage.xform, );
 
     document.getElementById("add-tree").onclick = () =>{
-      container.innerHTML = ""
+      assemblage.recursiveLimit = recLim;
+      addRandomNewTree(assemblage, autoscale);
+      assemblage.fitToCanvas();
+      var polyLines = draw(assemblage);
+
+    
+      container.innerHTML = "";
       var element = SVGElement(width, height, width, height, "svg", assemblageSVGId);
       container.appendChild(element);
-      assemblage.recursiveLimit = recLim;
-      addRandomNewTree(assemblage, autoscale, element);
-      assemblage.fitToCanvas();
-      
-      var polyLines = draw(assemblage);
-      console.log(assemblage.xform)
       draw_svg(element, polyLines, assemblage.xform, );
       assemblerElement = element;
-
     }
   }
   return element;
