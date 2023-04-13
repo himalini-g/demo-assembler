@@ -66,6 +66,8 @@
       <div id="generating-tool-panel" class="drawing-panel">
         <button onclick="rerenderAssemblage()"> <i class="fa fa-refresh" aria-hidden="true"></i> regenerate</button>
         <button id="add-tree"> <i class="fa fa-refresh" aria-hidden="true"></i> add more</button>
+        <button id="undo"> </i> undo</button>
+        <button id="redo"> </i> redo</button>
         <button onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
         <button onclick="downloadProject()">  <i class="fa fa-floppy-o" aria-hidden="true"></i> download project</button>
         <button onclick> <input type="file" id="load-project" onchange="loadJSON()" accept=".json"/> <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
@@ -76,12 +78,13 @@
         </div>
        
       </div>
-      <div id="assembler-svg-container" class="svg-container">
-      </div>
       <div id="thumbnail-container" class="thumbnail-panel">
         <div id="thumbnails">
         </div>
       </div>
+      <div id="assembler-svg-container" class="svg-container">
+      </div>
+      
     </div>
     <script src="utils/line_intersect_line.js"></script>
     <script src="utils/math_utils.js"></script>

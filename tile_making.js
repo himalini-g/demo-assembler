@@ -558,7 +558,7 @@ class OrientLineMode{
         var text = this.svg.getText(lineID);
         if(text.length != null){
             text.length.point = average;
-            text.length.txt = Math.trunc(length).toString() + ", " + degrees.toString();
+            text.length.txt = Math.trunc(length).toString() + ", " + degrees.toString() + "x"  + Math.trunc(average.x) + "y"  + Math.trunc(average.y);
         } 
 
         if(text.label != null){
@@ -623,7 +623,7 @@ class OrientLineMode{
             var [average, length, degrees]  = this.svg.computeAverage(this.baseID);
             this.svg.updateSvgPath(average, this.baseID, true);
 			
-            this.svg.addText(average,  Math.trunc(length).toString() + ", " + degrees.toString(), true, this.baseID);
+            this.svg.addText(average,  Math.trunc(length).toString() + ", " + degrees.toString() + "x"  + Math.trunc(average.x) + "y"  + Math.trunc(average.y), true, this.baseID);
             this.baseID = null;
 			this.compliance();
         }

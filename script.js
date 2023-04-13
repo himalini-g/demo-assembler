@@ -258,13 +258,15 @@ class Thumbnails{
         var thumbnailElemNS = SVGElement(this.width, this.height, this.thumbnailWidth, this.thumbnailHeight, "svg", id);
         var thumbnailDIV = makeDiv(id + "_container", svg.name, this.thumbnailDivClass);
         var deleteButton = makeButton(this.trashicon +  " delete");
+        var duplicateButton = makeButton("duplicate tile");
         
-        var saveButton = makeButton(this.saveicon +  " download svg");
+     
         var loadButton = makeButton(this.editicon +  "edit tile");
         thumbnailDIV.appendChild(thumbnailElemNS);
         thumbnailDIV.appendChild(deleteButton);
-        thumbnailDIV.appendChild(saveButton);
+      
         thumbnailDIV.appendChild(loadButton);
+        thumbnailDIV.appendChild(duplicateButton);
 
         $("#" + this.thumbnailDivID).append(thumbnailDIV);
         var thumbnailElement = document.getElementById(id);
@@ -277,8 +279,19 @@ class Thumbnails{
 
 
         deleteButton.onclick = this.deleteDrawingLambda(thumbnailDIV,thumbnailElement);
-        saveButton.onclick = this.downloadDrawingLambda(svg);
+      
         loadButton.onclick = this.loadDrawingLambda(thumbnailDIV,thumbnailElement, svg);
+        duplicateButton.onclick = this.duplicateDrawingLambda(svg);
+    }
+    duplicateDrawingLambda(svg){
+        const duplicateDrawing = (e) =>{
+            var svgJSON = JSON.parse(JSON.stringify(svg));
+            var svgClass =  new Svg(null, svgJSON.name,  constructionLayer, layerInfo, outlineLayer, orientLayer , invalidCSS);
+            svgClass.fromJSON(svgJSON);
+            this.addThumbnail(svgClass);
+        } 
+        return duplicateDrawing;
+
     }
     loadDrawingLambda(thumbnailDIV,thumbnailElement, svg){
         const svgDelete = this.deleteDrawingLambda(thumbnailDIV, thumbnailElement);
@@ -383,10 +396,14 @@ function reset(){
 }
 
 var tileCounter = 0;
-const width = 800;
-const height = 600;
-const assemblageWidth = 800;
-const assemblageHeight = 600;
+
+const pixelsInInch = 200;
+const assemblageWidthInches= 20;
+const assemblageHeightInches = 10; 
+const assemblageWidth = pixelsInInch * assemblageWidthInches;
+const assemblageHeight = pixelsInInch * assemblageHeightInches;
+const width = 2 * pixelsInInch;
+const height = 2 * pixelsInInch;
 const thumbnailHeight = Math.ceil(height / 4);
 const thumbnailWidth = Math.ceil(width / 4);
 const thumbnailDivClass = "thumbnail-container"
@@ -429,7 +446,7 @@ var select = null;
 var layerthumbnails = null;
 var selectpointsmode = null;
 var orientlinemode = null;
-var assemblerElement = assemblerSetup([], {}, width, height);
+var assemblerElement = assemblerSetup([], {}, assemblageWidth, assemblageHeight);
 const layerInfo = 
 [
     {
