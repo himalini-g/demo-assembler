@@ -1,6 +1,26 @@
 const debug = false;
 const recLim = 100;
 
+
+function inside(point, vs) {
+  // ray-casting algorithm based on
+  // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+  
+  var x = point.x, y = point.y;
+  
+  var inside = false;
+  for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+      var xi = vs[i].x, yi = vs[i].y;
+      var xj = vs[j].x, yj = vs[j].y;
+      
+      var intersect = ((yi > y) != (yj > y))
+          && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+  }
+  
+  return inside;
+};
+
 function draw(assemblage, visualize=false){
     var polyLines = [];
     for(var l = 0; l< assemblage.renderStack.length; l++){
@@ -21,49 +41,68 @@ const P2ArrayToArray = arr => arr.reduce((acc, point)=> {
 }, []);
 
 class Assemblage{
-  constructor(drawingJSONS, recursiveLimit, attachments, width, height){
+  constructor(drawingJSONS, recursiveLimit, attachments, width, height, tileScale){
     this.width = width;
     this.height = height; 
     this.referenceDrawingJsons = drawingJSONS;
     this.recursiveLimit = recursiveLimit;
     this.attachments = attachments;
+    this.tileScale = tileScale;
     this.drawingStack = [];
     this.renderStack = [];
     this.tempDrawing = null;
     this.xform = "";
     this.checkRect = false;
     this.bbox = null;
-    this.redoStack = [];
-    this.undoStack = [];
+    this.current = 0;
+    this.historyStack = [];
 
   }
   addToHistory(){
-    this.redoStack = [];
-
-    this.undoStack.push(structuredClone({
+    this.current ++;
+    this.historyStack = this.historyStack.slice(0, this.current)
+    this.historyStack.push(structuredClone({
       drawingStack: this.drawingStack,
       renderStack: this.renderStack,
     }));
+    console.log(this.renderStack.length);
   }
   redo(){
-    console.log("hello")
-    if(this.redoStack.length > 0){
-      var future = this.redoStack.pop();
-      console.log(future);
-      this.undoStack.push(future);
-      this.renderStack = future.renderStack;
-      this.drawingStack = future.drawingStack;
-    }
-    return;
+    
+    this.current = Math.min(this.historyStack.length -1, this.current + 1);
+    var past = this.historyStack[this.current];
+    this.renderStack = past.renderStack.map(drawing => 
+      {
+        var copy = this.deepCopies()[0]
+        copy.fromHistory(drawing);
+        return copy;
+      });
+    this.drawingStack = past.drawingStack.map(drawing => 
+    {
+      var copy = this.deepCopies()[0]
+      copy.fromHistory(drawing);
+      return copy;
+    });
+    console.log(this.renderStack.length);
+   
   }
   undo(){
-    if(this.undoStack.length > 0){
-      var past = this.redoStack.pop();
-      this.redoStack.push(past);
-      console.log(past);
-      this.renderStack = past.renderStack;
-      this.drawingStack = past.drawingStack;
-    }
+    this.current = Math.max(0, this.current - 1);
+    var past = this.historyStack[this.current];
+    this.renderStack = past.renderStack.map(drawing => 
+      {
+        var copy = this.deepCopies()[0]
+        copy.fromHistory(drawing);
+        return copy;
+      });
+    this.drawingStack = past.drawingStack.map(drawing => 
+    {
+      var copy = this.deepCopies()[0]
+      copy.fromHistory(drawing);
+      return copy;
+    });
+    console.log(this.renderStack.length);
+    
     return;
   }
 
@@ -78,15 +117,20 @@ class Assemblage{
     return height < this.height && width < this.width;
   }
   checkIntersect(newDrawing){
-    // console.log(this.outsideDims(newDrawing));
+    
+
+
     if(!this.outsideDims(newDrawing)){
       return false;
     }
+    
     var polygonList = this.getPolygonBorders();
     var b = polygonList.some(polygon => {
-      var inside = intersect(newDrawing.polygonBorder, polygon);
-      return inside.length != 0;
-    })
+      return newDrawing.polygonBorder.some(point => {
+        return inside(point, polygon);
+      });
+    });
+
     if(this.checkRect){
       return !b && this.checkInRect(newDrawing);
     }
@@ -102,7 +146,7 @@ class Assemblage{
     return b;
   }
   deepCopies(){
-    return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments));
+    return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments, this.tileScale));
   }
   shuffledDrawingIndexes(){
     if(!debug){
@@ -129,12 +173,12 @@ class Assemblage{
     }
     var newLineList = lineList.flat(2);
     var bBox = get_bbox(newLineList);
-    var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
+    // var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
     const tMat = translateMatrix( bBox[0].x,  bBox[0].y);
-    const scMat = scaleMatrix(1.0 / scalingFactor, 1.0 /  scalingFactor);
-    const cMat = composeTransforms([scMat, tMat]);
+    // const scMat = scaleMatrix(1.0 / scalingFactor, 1.0 /  scalingFactor);
+    const cMat = composeTransforms([tMat]);
     this.bbox = xformLine([{x: 0, y: 0}, {x: this.width, y: this.height}], cMat);
-    console.log(this.bbox, bBox);
+  
   }
   fitToCanvas(){
     var lineList =  this.renderStack.map(drawing => drawing.lines);
@@ -144,15 +188,10 @@ class Assemblage{
     }
     var newLineList = lineList.flat(2);
     var bBox = get_bbox(newLineList);
-    var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
+    // var scalingFactor = Math.min(this.width / (bBox[1].x - bBox[0].x), this.height / (bBox[1].y - bBox[0].y));
     const tMat = translateMatrix(-1 * bBox[0].x, -1 * bBox[0].y);
     const cMat = composeTransforms([tMat]);
     this.xform = xformToString(cMat);
-  }
-  postProcess(){
-    this.renderStack.forEach(drawing => {
-      drawing.applyLambdaToLines(linePostProcessing)
-    })
   }
 }
 
@@ -165,58 +204,143 @@ function stackInit(assemblage){
   assemblage.addDrawingToAssemblage(drawingObj);
   return [true, assemblage];
 }
+function tempElement(drawing, matrix){
+  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+ 
+  var polyLines = [];
+
+  polyLines.push(...drawing.getLines());
+
+  var lineObjs = polyLines.map((line, index) => {
+    var lineObj = new Line("assembler_" + index.toString(), false, "#0f0")
+    lineObj.points = line;
+    lineObj.reRender();
+    return lineObj;
+  });
+  lineObjs.forEach(line => line.addToParentElement(g, "assembler"));
+  g.setAttribute("transform", matrix);
+  return g;
+}
+function readKey() {
+  return new Promise(resolve => {
+      window.addEventListener('keypress', resolve, {once:true});
+  });
+}
+async function ManualMakeStack(assemblage, autoscale) {
+  return new Promise(async (resolve) => {
+  
+    //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
+    
+    while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
+      // pops a drawings off the stack
+      var drawing = assemblage.drawingStack.pop(0);
+      
+      // goes through each of the openings of the drawing
+      for(var i = 0; i < drawing.orientLines.length; i++){
+        //exhausts list of drawings
+      
+        var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
+        while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
+      
+          var newDrawingIndex = drawingOptionsIndexes.pop();
+          var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
+          var newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
+          while(newPoints.length > 0){
+            var newPoint = newPoints.pop();
+            var newDrawing = assemblage.deepCopies()[newDrawingIndex];
+            drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
+            
+            assemblage.tempElement = newDrawing;
+            assemblage.fitToCanvas();
+            var element = visualize(assemblage);
+            console.log(assemblage.xform);
+            var newDrawingVis = tempElement(newDrawing, assemblage.xform );
+            element.appendChild(newDrawingVis);
+          
+            const b = await readKey();
+            console.log(b.keyCode);
+        
+            //const b = assemblage.checkIntersect(newDrawing);      
+            if(b.keyCode == 97){ //a
+              console.log("accepting");
+              assemblage.addDrawingToAssemblage(newDrawing);
+              drawing.orientLines[i].attachedDrawing = [newDrawing, newPoint];
+              newDrawing.orientLines[newPoint].attachedDrawing = [drawing, i];
+              
+            } else if(b.keyCode == 49){ //number 1 key
+              assemblage.tempElement = null;
+              assemblage.fitToCanvas();
+              visualize(assemblage);
+              resolve(assemblage);
+              return;
+            } else{
+              newDrawing = null;
+            }
+            assemblage.tempElement = null;
+            assemblage.fitToCanvas();
+            visualize(assemblage);
+            console.log(assemblage.renderStack.length, assemblage.drawingStack.length);
+          }
+        
+        }
+      }
+      assemblage.recursiveLimit -= 1;
+      
+    }
+
+    console.log("end stack");
+    resolve(assemblage);
+    return;
+  });
+}
 
 function makeStack(assemblage, autoscale) {
+  
+  
   //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
   
   while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
     // pops a drawings off the stack
     var drawing = assemblage.drawingStack.pop(0);
     
-     // goes through each of the openings of the drawing
+    // goes through each of the openings of the drawing
     for(var i = 0; i < drawing.orientLines.length; i++){
       //exhausts list of drawings
-     
+    
       var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
-      while(drawing.orientLines[i].attachedDrawing == false && drawingOptionsIndexes.length  > 0 ){
-     
+      while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
+    
         var newDrawingIndex = drawingOptionsIndexes.pop();
         var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
         var newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
-     
         while(newPoints.length > 0){
           var newPoint = newPoints.pop();
           var newDrawing = assemblage.deepCopies()[newDrawingIndex];
           drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
-          var b = assemblage.checkIntersect(newDrawing);
+          const b = assemblage.checkIntersect(newDrawing);      
           if(b){
-            
             assemblage.addDrawingToAssemblage(newDrawing);
-            drawing.orientLines[i].attachedDrawing = true;
-            newDrawing.orientLines[newPoint].attachedDrawing = true;
-            // visualize(assemblage);
-            // animationTimeout(200).then(() => { console.log("World!"); });
-            
+            drawing.orientLines[i].attachedDrawing = [newDrawing, newPoint];
+            newDrawing.orientLines[newPoint].attachedDrawing = [drawing, i];
           } else{
             newDrawing = null;
           }
-         
         }
-       
+      
       }
     }
     assemblage.recursiveLimit -= 1;
     
   }
-  // visualize(assemblage);
-  
-  return assemblage;
+  return assemblage
+ 
 }
+
 
 
 class Drawing {
 
-  constructor (object, attachments){
+  constructor (object, attachments, tileScale){
     this.lines = JSON.parse(JSON.stringify(object.getLayerAssembler("construction")));
     this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("border")));
     this.polygonBorder = this.polygonBorder.flat(1);
@@ -230,14 +354,29 @@ class Drawing {
         var orientLine = {
           opening: this.orient[i].points.slice(0, 2),
           vector: this.getRay(this.orient[i].points.slice(0, 2)),
-          attachedDrawing: false,
+          attachedDrawing: null,
           //TODO: fix,
           label: this.orientLabels[this.orient[i].id],
           index: i,
         }
         this.orientLines.push(orientLine)
     }
+    const scmat  = scaleMatrix(tileScale, tileScale);
+    const xformDrawing = line => {
+      return xformLine(line, scmat)
+    }
+    this.applyLambdaToLines(xformDrawing);
+    
 
+  }
+  fromHistory(drawing){
+    this.lines = drawing.lines;
+    this.polygonBorder = drawing.polygonBorder ;
+    this.polygonBorder = drawing.polygonBorder ;
+    this.orient = drawing.orient ;
+    this.orientLabels = drawing.orientLabels;
+    this.orientLines = drawing.orientLines ;
+    this.attachments =  drawing.attachments;
   }
   getRays(points){
   
@@ -292,7 +431,6 @@ class Drawing {
     }
   }
   getOrientIndexOptions(targetLabels){
-
     return this.orientLines
     .filter(line => targetLabels.includes(line.label))
     .map(line => line.index);
@@ -313,13 +451,14 @@ class Drawing {
 
   applyLambdaToLines(lambda){
     this.lines = this.lines.map(l => lambda(l))
-    this.orientLines = this.orientLines.map(o => 
+    this.orientLines = this.orientLines.map((o, index) => 
       { 
         return {
           opening: lambda(o.opening),
           vector: lambda(o.vector),
           attachedDrawing: o.attachedDrawing,
-          label: o.label
+          label: o.label,
+          index: index,
         }
       })
     this.polygonBorder = lambda(this.polygonBorder);
@@ -377,18 +516,6 @@ class Drawing {
 
   }
 }
-/// ********** utils
-// averages points in line
-
-function linePostProcessing(line){
- 
-  // line = resample(line, 1.0);
-  if(line.length > 7){
-    return firstOrderSmoothing(line);
-  }
-  return line;
-}
-
 
 // applies matrix transform to point (x, y)
 function xformLine(line, rotationMatrix){
@@ -415,16 +542,17 @@ function draw_svg(element, polylines, matrix){
 }
 
 function visualize(assemblage){
-  assemblage.fitToCanvas();
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(assemblage.width, assemblage.height, assemblage.width, assemblage.height, "svg", "assembler-svg");
   container.appendChild(element);
   var polyLines = draw(assemblage, true);
   draw_svg(element, polyLines, assemblage.xform);
+  return element
 }
 
 function addRandomNewTree(assemblage, autoscale){
+  // async function addRandomNewTree(assemblage, autoscale){
   
   var initIndexes = assemblage.shuffledDrawingIndexes();
   let drawingObj = null;
@@ -433,82 +561,80 @@ function addRandomNewTree(assemblage, autoscale){
     drawingObj = assemblage.deepCopies()[initIndexes.pop()];
     const tx = (Math.random() * Math.abs(assemblage.bbox[1].x - assemblage.bbox[0].x)) + assemblage.bbox[0].x;
     const ty = (Math.random() * Math.abs(assemblage.bbox[1].y - assemblage.bbox[0].y)) + assemblage.bbox[0].y;
+    const thetaRand = (Math.random() * Math.PI);
     const tMat = translateMatrix(tx, ty);
+    const rMat = rotationMatrix(thetaRand);
+    const composed = composeTransforms([rMat, tMat])
     const xformDrawing = line => {
-      return xformLine(line, tMat)
+      return xformLine(line, composed)
     }
     drawingObj.applyLambdaToLines(xformDrawing);
     outside = !assemblage.checkIntersect(drawingObj);    
   }
   if(outside){
+    console.log("returning!!")
     return;
+    
   }
+ 
   assemblage.addDrawingToAssemblage(drawingObj);
-  console.log(assemblage.drawingStack);
+  console.log("hello");
+  // assemblage = await makeStack(assemblage, autoscale);
   assemblage = makeStack(assemblage, autoscale);
+  assemblage.addToHistory();
   return;
 }
-function assemblerSetup(drawings, attachments, width, height){
+function assemblerSetup(drawings, attachments, width, height, tileScale){
   const assemblageSVGId = "assembler-svg";
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", assemblageSVGId);
   container.appendChild(element);
   var autoscale = document.getElementById("autoscale-check").checked;
-  let assemblageObj = new Assemblage(drawings, recLim, attachments, width, height);
+  let assemblageObj = new Assemblage(drawings, recLim, attachments, width, height, tileScale);
+  console.log(assemblageObj)
+  console.log("hello");
   let [init, assemblage] = stackInit(assemblageObj);
   if(init){
     
 
     assemblage = makeStack(assemblage, autoscale);
     assemblage.fitToCanvas();
-    
-    var container = document.getElementById("assembler-svg-container");
-    container.innerHTML = ""
-    var element = SVGElement(width, height,width, height,  "svg", assemblageSVGId);
-    container.appendChild(element);
-    
     assemblage.setRect();
     assemblage.checkRect = true;
- 
-    
-    var polyLines = draw(assemblage);
 
-    draw_svg(element, polyLines, assemblage.xform, );
+    var element = visualize(assemblage);
     assemblage.addToHistory();
 
-    document.getElementById("add-tree").onclick = () =>{
+    document.getElementById("add-tree").onclick = () => {
       assemblage.recursiveLimit = recLim;
+      console.log("adding new tree");
       addRandomNewTree(assemblage, autoscale);
       assemblage.fitToCanvas();
-      var polyLines = draw(assemblage);
-      container.innerHTML = "";
-      var element = SVGElement(width, height,width, height,  "svg", assemblageSVGId);
-      container.appendChild(element);
-      draw_svg(element, polyLines, assemblage.xform, );
-      assemblerElement = element;
-      assemblage.addToHistory();
+      assemblerElement = visualize(assemblage);
     }
     document.getElementById("undo").onclick = () =>{
       assemblage.undo();
-     
-      var polyLines = draw(assemblage);
-      container.innerHTML = "";
-      var element = SVGElement(width, height,width, height,  "svg", assemblageSVGId);
-      container.appendChild(element);
-      draw_svg(element, polyLines, assemblage.xform, );
-      assemblerElement = element;
-      
+      assemblerElement = visualize(assemblage);
     }
     document.getElementById("redo").onclick = () =>{
       assemblage.redo();
-      var polyLines = draw(assemblage);
-      container.innerHTML = "";
-      var element = SVGElement(width, height,width, height,  "svg", assemblageSVGId);
-      container.appendChild(element);
-      draw_svg(element, polyLines, assemblage.xform, );
-      assemblerElement = element;
-      
+      assemblerElement = visualize(assemblage);
+    }
+    // automate
+ 
+    document.getElementById("automate").onclick = () =>{
+      var curLength = assemblage.renderStack.length;
+      const startLength = assemblage.renderStack.length
+      while(assemblage.renderStack.length < startLength + 1000){
+        document.getElementById("add-tree").click();
+        assemblage.historyStack.pop();
+        if(assemblage.renderStack.length  - curLength > 50 ){
+          assemblerElement = visualize(assemblage);
+          document.getElementById("download-assemblage").click();
+          curLength = assemblage.renderStack.length ;
+        }
+      }
     }
   }
   return element;

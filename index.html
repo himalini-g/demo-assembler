@@ -45,6 +45,10 @@
                 <div> 
                   <button id="move-label"> move label</button> 
                   <button id="edit-label">draw and select nodes/edges</button>
+                  <button id= "delete-labels">delete labels</button>
+                  <button id= "bi-link-assign">bi link assign</button>
+                  <button id= "left-link-assign">left link assign</button>
+                  <button id= "right-link-assign">right link assign</button>
                 </div>
                 <div id="label-display">
                 </div>
@@ -66,12 +70,13 @@
       <div id="generating-tool-panel" class="drawing-panel">
         <button onclick="rerenderAssemblage()"> <i class="fa fa-refresh" aria-hidden="true"></i> regenerate</button>
         <button id="add-tree"> <i class="fa fa-refresh" aria-hidden="true"></i> add more</button>
-        <button id="undo"> </i> undo</button>
-        <button id="redo"> </i> redo</button>
-        <button onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
+        <button id="undo"> undo</button>
+        <button id="redo"> redo</button>
+        <button id="automate"> automatate</button>
+        <button id="visualize">  visualize</button>
+        <button id="download-assemblage" onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
         <button onclick="downloadProject()">  <i class="fa fa-floppy-o" aria-hidden="true"></i> download project</button>
         <button onclick> <input type="file" id="load-project" onchange="loadJSON()" accept=".json"/> <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
-      
         <div>
           <input type="checkbox" id="autoscale-check" name="autoscale">
           <label for="autoscale">autoscale</label><br>

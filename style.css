@@ -157,10 +157,10 @@ svg text{
 
 .modal-content {
   background-color: #1e2433;
-  margin: auto;
+  margin: 70px 70px;
   padding: 20px;
   border: 1px solid #888;
-  width: 80%;
+  width: 50%;
   font-size: 30px;
 }
 

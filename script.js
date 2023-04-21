@@ -86,11 +86,8 @@ function setup(passedSVG=null){
     layerthumbnails.layerChange[constructionLayer]();
 }
 
-function rerenderAssemblage(){
-    assemblerElement = assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight);
-}
-function startAdvanced(){
-    assemblerElement = controlAssemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight);
+async function rerenderAssemblage(){
+    assemblerElement = await  assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight, tileScale);
 }
 
 function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeight=75,  htmlClass="svg", id){
@@ -248,7 +245,9 @@ class Thumbnails{
       
             this.addThumbnail(svgClass);
         });
-        labelmanager.fromJson(project.labels)
+        
+        labelManagerFromJSON(project.labels, labelmanager.width, labelmanager.height)
+
         this.render();
 
     }
@@ -398,12 +397,22 @@ function reset(){
 var tileCounter = 0;
 
 const pixelsInInch = 200;
-const assemblageWidthInches= 20;
+const assemblageWidthInches= 8;
 const assemblageHeightInches = 10; 
-const assemblageWidth = pixelsInInch * assemblageWidthInches;
-const assemblageHeight = pixelsInInch * assemblageHeightInches;
-const width = 2 * pixelsInInch;
-const height = 2 * pixelsInInch;
+
+// scale organ
+const tileScale = 0.50;
+// const assemblageWidthInches= 30 - (2 * 2);
+// const assemblageHeightInches = 72 - (2 * 2); 
+// scale animals
+// const tileScale = 0.40;
+// scale electronics
+
+
+const assemblageWidth = Math.trunc(pixelsInInch * assemblageWidthInches);
+const assemblageHeight = Math.trunc(pixelsInInch * assemblageHeightInches);
+const width = 3 * pixelsInInch;
+const height = 3 * pixelsInInch;
 const thumbnailHeight = Math.ceil(height / 4);
 const thumbnailWidth = Math.ceil(width / 4);
 const thumbnailDivClass = "thumbnail-container"
@@ -446,7 +455,7 @@ var select = null;
 var layerthumbnails = null;
 var selectpointsmode = null;
 var orientlinemode = null;
-var assemblerElement = assemblerSetup([], {}, assemblageWidth, assemblageHeight);
+var assemblerElement =  assemblerSetup([], {}, assemblageWidth, assemblageHeight, tileScale);
 const layerInfo = 
 [
     {
