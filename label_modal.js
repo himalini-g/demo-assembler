@@ -17,7 +17,6 @@ class Labels{
     this.height = 600;
     this.circle_radius = 40;
     this.colors =  d3.scale.category10();
-    document.getElementById(this.graphDisplayDivID).innerHTML = "";
 
     this.graphSvg = d3.select("#" + this.graphDisplayDivID)
       .append('svg')
@@ -82,12 +81,6 @@ class Labels{
     this.force.drag().on('dragstart', (d) => {d.fixed=true});
 
 
-    document.getElementById(this.moveLabelButtonID).onclick = () => this.moveMode();
-    document.getElementById(this.editLabelButtonID).onclick = () => this.editMode();
-    document.getElementById(this.deleteLabelButtonID).onclick = () => this.deleteNode();
-    document.getElementById(this.biDirectionalLinkButtonID).onclick = () => this.biDirectionalLink();
-    document.getElementById(this.leftDirectionalLinkButtonID).onclick = () => this.leftDirectionLink();
-    document.getElementById(this.rightDirectionalLinkButtonID).onclick = () => this.rightDirectionLink();
     this.editMode();
     
 
@@ -100,8 +93,6 @@ class Labels{
 
   moveMode(){
     this.canDrag = true;
-    document.getElementById(this.moveLabelButtonID).classList.add(this.selectedCSS);
-    document.getElementById(this.editLabelButtonID).classList.remove(this.selectedCSS);
     this.resetMouseVars();this.svgHeight
     this.circle.call(this.force.drag);
     this.graphSvg.classed('ctrl', true);
@@ -109,8 +100,6 @@ class Labels{
 
   editMode(){
     this.canDrag = false;
-    document.getElementById(this.editLabelButtonID).classList.add(this.selectedCSS);
-    document.getElementById(this.moveLabelButtonID).classList.remove(this.selectedCSS);
     this.graphSvg.classed('ctrl', false);
     this.circle
       .on('mousedown.drag', null)
@@ -390,10 +379,10 @@ class Labels{
     // add new links
     this.path.enter().append('svg:path')
       .attr('class', 'link')
-      .classed('selected', (d) =>  { return d === this.selected_link; })
+      .classed('selected', (d) => { return d === this.selected_link; })
       .style('marker-start', function(d) { return d.left ? 'url(#start-arrow)' : ''; })
       .style('marker-end', function(d) { return d.right ? 'url(#end-arrow)' : ''; })
-      .on('mousedown', (d) =>this.pathMouseDown(d));
+      .on('mousedown', (d) => this.pathMouseDown(d));
  
   
     // remove old links
@@ -435,22 +424,9 @@ class Labels{
 
 class AssignLabel{
   constructor(){
-    this.dropDowns = () => document.getElementsByClassName("dropdown-content");
     this.nodes = {};
   }
   render(nodes){
-    this.nodes = {};
-    var dropDownDiv =  document.getElementById("label-dropdown");
-    dropDownDiv.innerHTML = "";
-    nodes.forEach(node => {
-      var text = document.createElement('p');
-      text.innerHTML = node.id;
-      text.onclick = () => {
-        orientlinemode.assignLabel(select.selected, node.id)
-      };
-      dropDownDiv.appendChild(text);
-      this.nodes[node.id] = text;
-    });
   }
   toggleDropDown(){
     document.getElementById("label-dropdown").classList.toggle("show");
@@ -527,28 +503,4 @@ function labelManagerFromJSON(edgeDict){
   labelmanager.restart();
   labelmanager.assignlabels.render(labelmanager.nodes);
 
-}
-
-// When the user clicks the button, open the modal 
-document.getElementById("add-label").onclick =function(){
-  labelmanager.mount();
-
-}
-
-
-// When the user clicks on <span> (x), close the modal
-document.getElementById("modal-text-close").onclick = function() {
-  labelmanager.unmount();
-}
-// When the user clicks anywhere outside of the modal, close it
-window.onclick = function(event) {
-  if (event.target == document.getElementById("enter-label")) {
-    labelmanager.unmount();
-  }
-}
-
-window.onclick = function(event) {  
-  if (!event.target.matches('#assign-label')) {
-    assignlabels.closeDropdown()
-  }
 }

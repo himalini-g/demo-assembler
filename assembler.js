@@ -52,7 +52,6 @@ class Assemblage{
     this.renderStack = [];
     this.tempDrawing = null;
     this.xform = "";
-    this.checkRect = false;
     this.bbox = null;
     this.current = 0;
     this.historyStack = [];
@@ -131,43 +130,17 @@ class Assemblage{
         return inside(point, polygon);
       });
     });
-
-    if(this.checkRect){
-      return !b && this.checkInRect(newDrawing);
-    }
     return !b;
   }
-  checkInRect(newDrawing){
-    var b = newDrawing.polygonBorder.every(point => {
-      if((this.bbox[0].x <= point.x && point.x <=this.bbox[1].x ) && (this.bbox[0].y <= point.y && point.y <= this.bbox[1].y)){
-        return true;
-      }
-      return false;
-    });
-    return b;
-  }
+
   deepCopies(){
     return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments, this.tileScale));
   }
   baseIndexes(){
     var indices = this.referenceDrawingJsons.map((_, index)=>index);
     var copies =  this.deepCopies();
-    var mushrooms = Math.random() < 0.65;
-    if(mushrooms){
-      console.log("mushrooms!")
-    } else{
-      console.log("plants!")
-    }
-    var condition  = () => null;
-    if(mushrooms){
-      condition = (text) => !(/cap/.test(text)) && (/mush/.test(text));
-    } else{
-      condition = (text) => !(/cap/.test(text)) && !(/mush/.test(text));
-    }
     indices = indices.filter(index => {
-      return copies[index].orientLines.some(line => {
-        return condition(line.label) && copies[index].orientLines.length > 2;
-      });
+      return copies[index].orientLines.length > 2;
     });
     return indices;
 
@@ -230,177 +203,80 @@ function stackInit(assemblage){
   assemblage.addDrawingToAssemblage(drawingObj);
   return [true, assemblage];
 }
-function tempElement(drawing, matrix){
-  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
- 
-  var polyLines = [];
+async function asyncVisualize(assemblage){
+  return new Promise(async (resolve) => {
+    var container = document.getElementById("assembler-svg-container");
+    container.innerHTML = ""
+    var element = SVGElement(assemblage.width, assemblage.height, assemblage.width, assemblage.height, "svg", "assembler-svg");
+    container.appendChild(element);
+    var polyLines = draw(assemblage, true);
+    draw_svg(element, polyLines, assemblage.xform);
+    resolve(element);
 
-  polyLines.push(...drawing.getLines());
-
-  var lineObjs = polyLines.map((line, index) => {
-    var lineObj = new Line("assembler_" + index.toString(), false, "#0f0")
-    lineObj.points = line;
-    lineObj.reRender();
-    return lineObj;
-  });
-  lineObjs.forEach(line => line.addToParentElement(g, "assembler"));
-  g.setAttribute("transform", matrix);
-  return g;
-}
-function readKey() {
-  return new Promise(resolve => {
-      window.addEventListener('keypress', resolve, {once:true});
-  });
-}
-// async function ManualMakeStack(assemblage, autoscale) {
-//   return new Promise(async (resolve) => {
+  })
   
-//     //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
-    
-//     while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
-//       // pops a drawings off the stack
-//       var drawing = assemblage.drawingStack.pop(0);
-      
-//       // goes through each of the openings of the drawing
-//       for(var i = 0; i < drawing.orientLines.length; i++){
-//         //exhausts list of drawings
-      
-//         var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
-//         while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
-      
-//           var newDrawingIndex = drawingOptionsIndexes.pop();
-//           var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
-//           var newPoints = [];
-//           if(!debug){
-//             newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
-//           } else{
-//             newPoints = (assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions);
-//           }
 
-//           while(newPoints.length > 0){
-//             var newPoint = newPoints.pop();
-//             var newDrawing = assemblage.deepCopies()[newDrawingIndex];
-//             drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
-            
-//             assemblage.tempElement = newDrawing;
-//             assemblage.fitToCanvas();
-//             var element = visualize(assemblage);
-//             console.log(assemblage.xform);
-//             var newDrawingVis = tempElement(newDrawing, assemblage.xform );
-//             element.appendChild(newDrawingVis);
-          
-//             const b = await readKey();
-//             console.log(b.keyCode);
-        
-//             //const b = assemblage.checkIntersect(newDrawing);      
-//             if(b.keyCode == 97){ //a
-//               console.log("accepting");
-//               assemblage.addDrawingToAssemblage(newDrawing);
-//               drawing.orientLines[i].attachedDrawing = [newDrawing, newPoint];
-//               newDrawing.orientLines[newPoint].attachedDrawing = [drawing, i];
-              
-//             } else if(b.keyCode == 49){ //number 1 key
-//               assemblage.tempElement = null;
-//               assemblage.fitToCanvas();
-//               visualize(assemblage);
-//               resolve(assemblage);
-//               return;
-//             } else{
-//               newDrawing = null;
-//             }
-//             assemblage.tempElement = null;
-//             assemblage.fitToCanvas();
-//             visualize(assemblage);
-//             console.log(assemblage.renderStack.length, assemblage.drawingStack.length);
-//           }
-        
-//         }
-//       }
-//       assemblage.recursiveLimit -= 1;
-      
-//     }
-
-//     console.log("end stack");
-//     resolve(assemblage);
-//     return;
-//   });
-// }
-function findAnimal(vertex, visited, animalParts){
-  if(visited[vertex.drawingID] == true){
-    return [visited, animalParts]
-  }
-  animalParts.parts[vertex.drawingID] = null;
-  visited[vertex.drawingID] = true;
-
-  var connection = vertex.orientLines.reduce((acc, line, index) => {
-    if(line.label === "mouth"){
-      acc.headIndex = index;
-    } else if(line.label !== "limb"){
-      // body connection
-      acc.bodyIndices.push(index);
-    }
-    return acc;
-  }, {headIndex: null, bodyIndices: []});
-
+}
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+async function demoMakeStack(assemblage, autoscale) {
+  return new Promise(async (resolve) => {
   
-  // four states: head middle end full
-  // headIndex == null => bodyIndices > 0 
-  //                      if bodyIndices == 0 => end
-  //                      if bodyIndices > 0 => middle
-  // headIndex != null && bodyIndices == 0 => full
-  // headIndex != null && bodyIndices > 0 => head
-
-  if(connection.headIndex != null && connection.bodyIndices.length  == 0){
-    animalParts.hasHead = true;
-    animalParts.hasEnd = true;
-  } else if((connection.headIndex == null && connection.bodyIndices.length > 1) || (connection.headIndex != null && connection.bodyIndices.length  > 0) || (connection.headIndex == null && connection.bodyIndices.length == 1)){
-    if(connection.headIndex != null && connection.bodyIndices.length  > 0){
-      animalParts.hasHead = true;
-    }
-    if(connection.headIndex == null && connection.bodyIndices.length == 1){
-      animalParts.hasEnd = true;
-    }
-    // headIndex != null && bodyIndices > 0 => head
-    // headIndex == null => bodyIndices > 0 
-    //                      if bodyIndices > 0 => middle
+    //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
     
-    
-    [visited, animalParts] = connection.bodyIndices.reduce(([visitedAcc, animalPartsAcc], index) => {
+    while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
+      // pops a drawings off the stack
+      var drawing = assemblage.drawingStack.pop(0);
       
-      const newVertex = vertex.orientLines[index].attachedDrawing;
-      if(newVertex == null){
-        return  [visitedAcc, animalPartsAcc];
+      // goes through each of the openings of the drawing
+      for(var i = 0; i < drawing.orientLines.length; i++){
+        //exhausts list of drawings
+      
+        var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
+        while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
+      
+          var newDrawingIndex = drawingOptionsIndexes.pop();
+          var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
+          var newPoints = [];
+          if(!debug){
+            newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
+          } else{
+            newPoints = (assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions);
+          }
+
+          while(newPoints.length > 0){
+            var newPoint = newPoints.pop();
+            var newDrawing = assemblage.deepCopies()[newDrawingIndex];
+            drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
+
+            const scaleSuccesful = drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
+            const b = scaleSuccesful && assemblage.checkIntersect(newDrawing);      
+            if(b){
+              assemblage.addDrawingToAssemblage(newDrawing);
+              drawing.orientLines[i].attachedDrawing = newDrawing;
+              newDrawing.orientLines[newPoint].attachedDrawing = drawing;
+              assemblage.fitToCanvas();
+              assemblerElement = await asyncVisualize(assemblage);
+              await sleep(1)
+            } else{
+              newDrawing = null;
+            }
+
+          }
+        
+        }
       }
-      var [newVisited, newParts] = findAnimal(newVertex, visited, animalParts);
-      visitedAcc = newVisited;
-      animalPartsAcc = newParts;
-      return [visitedAcc, animalPartsAcc];
-    }, [visited, animalParts]);
-
-  }
-  return [visited, animalParts];
-}
-function cleanUp(assemblage){
-  var visited = {};
-  assemblage.renderStack.forEach(drawing => visited[drawing.drawingID] = false);
-  var toDelete = {};
-  assemblage.renderStack.forEach((drawing) => {
-    if(visited[drawing.drawingID] == false){
-      var [newVisisted, animalParts] = findAnimal(drawing, visited, {hasHead: false, hasEnd: false, parts: {}});
-      visited = newVisisted;
-      if(!(animalParts.hasHead && animalParts.hasEnd)){
-     
-        toDelete = {...toDelete, ...animalParts.parts};
-        
-      };
+      assemblage.recursiveLimit -= 1;
+      
     }
-   
+
+    console.log("end stack");
+    resolve(assemblage);
+    return;
   });
-  assemblage.renderStack = assemblage.renderStack.filter((drawing) => {
-    return !(drawing.drawingID in toDelete)
-  });
-  assemblageElement = visualize(assemblage);
 }
+
 function makeStack(assemblage, autoscale) {
   
   
@@ -668,7 +544,7 @@ function visualize(assemblage){
   return element
 }
 
-function addRandomNewTree(assemblage, autoscale){
+async function addRandomNewTree(assemblage, autoscale){
   // async function addRandomNewTree(assemblage, autoscale){
   
   // var initIndexes = assemblage.shuffledDrawingIndexes();
@@ -697,71 +573,42 @@ function addRandomNewTree(assemblage, autoscale){
  
   assemblage.addDrawingToAssemblage(drawingObj);
 
-  // assemblage = await makeStack(assemblage, autoscale);
-  assemblage = makeStack(assemblage, autoscale);
+  assemblage = await demoMakeStack(assemblage, autoscale);
+  // assemblage = makeStack(assemblage, autoscale);
   assemblage.addToHistory();
   return;
 }
-function assemblerSetup(drawings, attachments, width, height, tileScale){
+var disableAddMoreAssemblage = false
+async function assemblerSetup(drawings, attachments, width, height, tileScale){
   const assemblageSVGId = "assembler-svg";
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", assemblageSVGId);
   container.appendChild(element);
-  var autoscale = document.getElementById("autoscale-check").checked;
+  var autoscale = true;
   let assemblageObj = new Assemblage(drawings, recLim, attachments, width, height, tileScale);
 
   let [init, assemblage] = stackInit(assemblageObj);
   if(init){
     
 
-    assemblage = makeStack(assemblage, autoscale);
+    assemblage = await demoMakeStack(assemblage, autoscale);
     assemblage.fitToCanvas();
     assemblage.setRect();
-    assemblage.checkRect = true;
 
-    var element = visualize(assemblage);
+    var element = await asyncVisualize(assemblage);
     assemblage.addToHistory();
-
-    document.getElementById("add-tree").onclick = () => {
-      assemblage.recursiveLimit = recLim;
-      console.log("adding new tree");
-      addRandomNewTree(assemblage, autoscale);
-      assemblage.fitToCanvas();
-      // assemblerElement = visualize(assemblage);
-    }
-    document.getElementById("undo").onclick = () =>{
-      assemblage.undo();
-      assemblerElement = visualize(assemblage);
-    }
-    document.getElementById("redo").onclick = () =>{
-      assemblage.redo();
-      assemblerElement = visualize(assemblage);
-    }
-    // document.getElementById("clean-up").onclick = () =>  {
-    //   cleanUp(assemblage);
-
-    // }
-    document.getElementById("automate").onclick = () =>{
-      var intervalLength = assemblage.renderStack.length;
-      const startLength = assemblage.renderStack.length;
-      var pastLength = assemblage.renderStack.length;
-      while(assemblage.renderStack.length < startLength + 1000){
-        document.getElementById("add-tree").click();
-        // cleanUp(assemblage);
-        assemblage.historyStack.pop();
-        if(assemblage.renderStack.length < 1000 && assemblage.renderStack.length - pastLength < 15){
-          console.log('drawing stack',assemblage.drawingStack.length );
-          assemblage.renderStack = assemblage.renderStack.slice(0, pastLength);
-          console.log('renderStack stack',assemblage.renderStack.length );
-        }
-        pastLength  = assemblage.renderStack. length;
-        if(assemblage.renderStack.length - intervalLength > 50 ){
-          assemblerElement = visualize(assemblage);
-          document.getElementById("download-assemblage").click();
-          intervalLength = assemblage.renderStack.length ;
-        }
-      }
+    const addTree =  async () => {
+      if(!disableAddMoreAssemblage){
+        disableAddMoreAssemblage = true;
+        assemblage.recursiveLimit = recLim;
+        console.log("adding new tree");
+        addRandomNewTree(assemblage, autoscale);
+        assemblage.fitToCanvas();
+        assemblerElement = await asyncVisualize(assemblage).then(
+            () => disableAddMoreAssemblage = false
+        );
+      }    
     }
     
   }

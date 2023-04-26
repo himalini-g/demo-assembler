@@ -19,74 +19,15 @@
         </div>
       </div>
       </div>
-      <div class="header"> Make Tile </div>
-      <div id="drawing-ui-container" class="drawing-container">
-        <div id="drawing-panel" class="drawing-panel">
-          <input type="button" value="instructions" onclick="window.open('https://docs.google.com/document/d/10cBzVxWtj3KSDs_mG5ULo_yI_5gars03324DIMb4k_o/edit?usp=sharing')" />
-          <button onclick="saveTile()"> save tile</button>
-          <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
-          <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
-          <button id="add-label">manage labels</button>
-          <button onclick="reflectOverX()" id="reflect-x">reflect x</button>
-          <button onclick="reflectOverY()" id="reflect-y">reflect y</button>
-          <button onclick="toggleDropdown()" id="assign-label">assign label</button>
-          
-          
-          <div class="dropdown">
-            <div id="label-dropdown" class="dropdown-content">
-            </div>
-          </div>
-
-          <div id="enter-label" class="modal">
-            <!-- Modal content -->
-            <div class="modal-content">
-              <span id="modal-text-close">&times;</span>
-              <div id="modal-text">
-                Add new label:
-                <input type="text" maxlength="512" id="label-text-input"/>
-                <button onclick="addLabel()">add label</button>
-                <p id="error-add-label"></p>
-                <div> 
-                  <button id="move-label"> move label</button> 
-                  <button id="edit-label">draw and select nodes/edges</button>
-                  <button id= "delete-labels">delete labels</button>
-                  <button id= "bi-link-assign">bi link assign</button>
-                  <button id= "left-link-assign">left link assign</button>
-                  <button id= "right-link-assign">right link assign</button>
-                </div>
-                <div id="label-display">
-                </div>
-                <div id="graph-display">
-                </div>
-              </div>
-            </div>
-          </div>
-          </select>
-        </div>
-        <div id="svg-container" class="svg-container">
-        </div>
-        <div id="layer-container">
-        </div>
-      </div> 
     </div>
     <div class="header"> Assemble Tiles </div>
     <div id="assembler-ui-container" class="drawing-container">
-      <div id="generating-tool-panel" class="drawing-panel">
-        <button onclick="rerenderAssemblage()"> <i class="fa fa-refresh" aria-hidden="true"></i> regenerate</button>
-        <button id="add-tree"> <i class="fa fa-refresh" aria-hidden="true"></i> add more</button>
-        <button id="undo"> undo</button>
-        <button id="redo"> redo</button>
-        <button id="automate"> automatate</button>
-        <!-- <button id="clean-up"> clean up</button> -->
-        <button id="download-assemblage" onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
-        <button onclick="downloadProject()">  <i class="fa fa-floppy-o" aria-hidden="true"></i> download project</button>
-        <button onclick> <input type="file" id="load-project" onchange="loadJSON()" accept=".json"/> <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
-        <div>
-          <input type="checkbox" id="autoscale-check" name="autoscale">
-          <label for="autoscale">autoscale</label><br>
-        </div>
+      <div class="drawing-panel">
        
-      </div>
+        <button onclick="loadPlants()">plants</button>
+        <button onclick="loadRobots()">robots</button>
+        <button onclick="loadOrgans()"> organs</button>
+      </div>      
       
       <div id="assembler-svg-container" class="svg-container">
       </div>
