@@ -6,6 +6,8 @@ html, body
   font-family: Arial;
   background-color: #1e2433;
   color: white;
+  height: 100%;
+  overflow: hidden
 }
 .invalid {
   stroke: red;
