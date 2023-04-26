@@ -6,10 +6,7 @@ function openModal(text = ""){
   document.getElementById("modal-text").innerHTML = text;
 }
 
-// When the user clicks on <span> (x), close the modal
-document.getElementById("close-error-modal").onclick = function() {
-  document.getElementById("error-modal").style.display = "none";
-}
+
 
 // When the user clicks anywhere outside of the modal, close it
 window.onclick = function(event) {

@@ -10,32 +10,19 @@
     <meta charset="utf-8" />
   </head>
   <body>
-    <div>
-      <button id="hidden-modal-button" style="display: none;">Open Modal</button>
-      <div id="error-modal" class="modal">
-        <div class="modal-content">
-          <span id="close-error-modal" class="close">&times;</span>
-          <p id="modal-text"></p>
-        </div>
-      </div>
-      </div>
-    </div>
     <div class="header"> Assemble Tiles </div>
-    <div id="assembler-ui-container" class="drawing-container">
-      <div class="drawing-panel">
-        <button type="button" id="plants" value="plants" onclick="loadDemo(this.value)" ontouchend="loadDemo(this.value)"></button>>plants</button>
-        <button type="button" id="robots" value="robots" onclick="loadDemo(this.value)" ontouchend="loadDemo(this.value)"></button>>robots</button>
-        <button type="button" id="organs" value="organs" onclick="loadDemo(this.value)" ontouchend="loadDemo(this.value)"></button>>organs</button>
-      </div>      
+    
+    <div class="drawing-panel">
       
-      <div id="assembler-svg-container" class="svg-container">
-      </div>
-      <div id="thumbnail-container" class="thumbnail-panel">
-        <div id="thumbnails">
-        </div>
-      </div>
-      
+      <button id="plants" value="plants" onclick="loadDemo(this.value)">plants</button>
+      <button id="robots" value="robots" onclick="loadDemo(this.value)">robots</button>
+      <button id="organs" value="organs" onclick="loadDemo(this.value)"> organs</button>
+    </div>      
+    
+    <div id="assembler-svg-container" class="svg-container">
     </div>
+   
+
     <script src="utils/line_intersect_line.js"></script>
     <script src="utils/math_utils.js"></script>
     <script src="utils/solution.js"></script>
@@ -48,4 +35,3 @@
     <script src="script.js"></script>
     
   </body>
-</html>

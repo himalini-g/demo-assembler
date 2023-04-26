@@ -154,7 +154,8 @@ async function parseJsonFile(file) {
       fileReader.readAsText(file)
     })
   }
-var jsons = {robots: {
+var jsons = {
+robots: {
     buttonID: "robots",
     json: null,
 },
@@ -165,7 +166,7 @@ organs: {
 plants: {
     buttonID: "plants",
     json: null,
-}}
+}};
 $.getJSON("library/plants.json", function(json) {
     jsons["plants"].json = json;
 });
@@ -176,7 +177,7 @@ $.getJSON("library/robots.json", function(json) {
     jsons["robots"].json = json;
 });
 
-var disableReRenderAssemblage = false
+var disableReRenderAssemblage = false;
 async function loadDemo(value){
     if(!disableReRenderAssemblage){
         thumbnailsobj.loadFile(jsons[value].json, toParse=false);
@@ -186,6 +187,16 @@ async function loadDemo(value){
         );
     }
 }
+document.getElementById("organs").addEventListener("touchstart",async () => {
+    loadDemo("organs")
+});
+document.getElementById("robots").addEventListener("touchstart",async () => {
+    loadDemo("robots")
+});
+document.getElementById("plants").addEventListener("touchstart",async () => {
+    loadDemo("plants")
+});
+
 
 
 
