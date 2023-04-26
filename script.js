@@ -221,7 +221,7 @@ var tileCounter = 0;
 
 const pixelsInInch = 200;
 const assemblageWidthInches= 3;
-const assemblageHeightInches = 4; 
+const assemblageHeightInches = 3; 
 
 const tileScale = 0.3;
 
