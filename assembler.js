@@ -56,6 +56,7 @@ class Assemblage{
     this.bbox = null;
     this.current = 0;
     this.historyStack = [];
+    this.uniqueId = 0;
 
   }
   addToHistory(){
@@ -148,6 +149,29 @@ class Assemblage{
   deepCopies(){
     return this.referenceDrawingJsons.map(json => new Drawing(json, this.attachments, this.tileScale));
   }
+  baseIndexes(){
+    var indices = this.referenceDrawingJsons.map((_, index)=>index);
+    var copies =  this.deepCopies();
+    var mushrooms = Math.random() < 0.65;
+    if(mushrooms){
+      console.log("mushrooms!")
+    } else{
+      console.log("plants!")
+    }
+    var condition  = () => null;
+    if(mushrooms){
+      condition = (text) => !(/cap/.test(text)) && (/mush/.test(text));
+    } else{
+      condition = (text) => !(/cap/.test(text)) && !(/mush/.test(text));
+    }
+    indices = indices.filter(index => {
+      return copies[index].orientLines.some(line => {
+        return condition(line.label) && copies[index].orientLines.length > 2;
+      });
+    });
+    return indices;
+
+  }
   shuffledDrawingIndexes(){
     if(!debug){
       return shuffleArray(this.referenceDrawingJsons.map((_, index)=>index));
@@ -157,6 +181,8 @@ class Assemblage{
   }
   
   addDrawingToAssemblage(drawing){
+    drawing.drawingID = this.uniqueId;
+    this.uniqueId += 1;
     this.renderStack.push(drawing);
     this.drawingStack.unshift(drawing);
   }
@@ -196,7 +222,7 @@ class Assemblage{
 }
 
 function stackInit(assemblage){
-  var initIndexes = assemblage.shuffledDrawingIndexes();
+  var initIndexes = assemblage.baseIndexes();
   if(initIndexes.length == 0){
     return [false, assemblage];
   }
@@ -226,74 +252,155 @@ function readKey() {
       window.addEventListener('keypress', resolve, {once:true});
   });
 }
-async function ManualMakeStack(assemblage, autoscale) {
-  return new Promise(async (resolve) => {
+// async function ManualMakeStack(assemblage, autoscale) {
+//   return new Promise(async (resolve) => {
   
-    //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
+//     //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
     
-    while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
-      // pops a drawings off the stack
-      var drawing = assemblage.drawingStack.pop(0);
+//     while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
+//       // pops a drawings off the stack
+//       var drawing = assemblage.drawingStack.pop(0);
       
-      // goes through each of the openings of the drawing
-      for(var i = 0; i < drawing.orientLines.length; i++){
-        //exhausts list of drawings
+//       // goes through each of the openings of the drawing
+//       for(var i = 0; i < drawing.orientLines.length; i++){
+//         //exhausts list of drawings
       
-        var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
-        while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
+//         var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
+//         while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
       
-          var newDrawingIndex = drawingOptionsIndexes.pop();
-          var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
-          var newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
-          while(newPoints.length > 0){
-            var newPoint = newPoints.pop();
-            var newDrawing = assemblage.deepCopies()[newDrawingIndex];
-            drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
+//           var newDrawingIndex = drawingOptionsIndexes.pop();
+//           var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
+//           var newPoints = [];
+//           if(!debug){
+//             newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
+//           } else{
+//             newPoints = (assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions);
+//           }
+
+//           while(newPoints.length > 0){
+//             var newPoint = newPoints.pop();
+//             var newDrawing = assemblage.deepCopies()[newDrawingIndex];
+//             drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
             
-            assemblage.tempElement = newDrawing;
-            assemblage.fitToCanvas();
-            var element = visualize(assemblage);
-            console.log(assemblage.xform);
-            var newDrawingVis = tempElement(newDrawing, assemblage.xform );
-            element.appendChild(newDrawingVis);
+//             assemblage.tempElement = newDrawing;
+//             assemblage.fitToCanvas();
+//             var element = visualize(assemblage);
+//             console.log(assemblage.xform);
+//             var newDrawingVis = tempElement(newDrawing, assemblage.xform );
+//             element.appendChild(newDrawingVis);
           
-            const b = await readKey();
-            console.log(b.keyCode);
+//             const b = await readKey();
+//             console.log(b.keyCode);
         
-            //const b = assemblage.checkIntersect(newDrawing);      
-            if(b.keyCode == 97){ //a
-              console.log("accepting");
-              assemblage.addDrawingToAssemblage(newDrawing);
-              drawing.orientLines[i].attachedDrawing = [newDrawing, newPoint];
-              newDrawing.orientLines[newPoint].attachedDrawing = [drawing, i];
+//             //const b = assemblage.checkIntersect(newDrawing);      
+//             if(b.keyCode == 97){ //a
+//               console.log("accepting");
+//               assemblage.addDrawingToAssemblage(newDrawing);
+//               drawing.orientLines[i].attachedDrawing = [newDrawing, newPoint];
+//               newDrawing.orientLines[newPoint].attachedDrawing = [drawing, i];
               
-            } else if(b.keyCode == 49){ //number 1 key
-              assemblage.tempElement = null;
-              assemblage.fitToCanvas();
-              visualize(assemblage);
-              resolve(assemblage);
-              return;
-            } else{
-              newDrawing = null;
-            }
-            assemblage.tempElement = null;
-            assemblage.fitToCanvas();
-            visualize(assemblage);
-            console.log(assemblage.renderStack.length, assemblage.drawingStack.length);
-          }
+//             } else if(b.keyCode == 49){ //number 1 key
+//               assemblage.tempElement = null;
+//               assemblage.fitToCanvas();
+//               visualize(assemblage);
+//               resolve(assemblage);
+//               return;
+//             } else{
+//               newDrawing = null;
+//             }
+//             assemblage.tempElement = null;
+//             assemblage.fitToCanvas();
+//             visualize(assemblage);
+//             console.log(assemblage.renderStack.length, assemblage.drawingStack.length);
+//           }
         
-        }
-      }
-      assemblage.recursiveLimit -= 1;
+//         }
+//       }
+//       assemblage.recursiveLimit -= 1;
       
+//     }
+
+//     console.log("end stack");
+//     resolve(assemblage);
+//     return;
+//   });
+// }
+function findAnimal(vertex, visited, animalParts){
+  if(visited[vertex.drawingID] == true){
+    return [visited, animalParts]
+  }
+  animalParts.parts[vertex.drawingID] = null;
+  visited[vertex.drawingID] = true;
+
+  var connection = vertex.orientLines.reduce((acc, line, index) => {
+    if(line.label === "mouth"){
+      acc.headIndex = index;
+    } else if(line.label !== "limb"){
+      // body connection
+      acc.bodyIndices.push(index);
     }
+    return acc;
+  }, {headIndex: null, bodyIndices: []});
 
-    console.log("end stack");
-    resolve(assemblage);
-    return;
-  });
+  
+  // four states: head middle end full
+  // headIndex == null => bodyIndices > 0 
+  //                      if bodyIndices == 0 => end
+  //                      if bodyIndices > 0 => middle
+  // headIndex != null && bodyIndices == 0 => full
+  // headIndex != null && bodyIndices > 0 => head
+
+  if(connection.headIndex != null && connection.bodyIndices.length  == 0){
+    animalParts.hasHead = true;
+    animalParts.hasEnd = true;
+  } else if((connection.headIndex == null && connection.bodyIndices.length > 1) || (connection.headIndex != null && connection.bodyIndices.length  > 0) || (connection.headIndex == null && connection.bodyIndices.length == 1)){
+    if(connection.headIndex != null && connection.bodyIndices.length  > 0){
+      animalParts.hasHead = true;
+    }
+    if(connection.headIndex == null && connection.bodyIndices.length == 1){
+      animalParts.hasEnd = true;
+    }
+    // headIndex != null && bodyIndices > 0 => head
+    // headIndex == null => bodyIndices > 0 
+    //                      if bodyIndices > 0 => middle
+    
+    
+    [visited, animalParts] = connection.bodyIndices.reduce(([visitedAcc, animalPartsAcc], index) => {
+      
+      const newVertex = vertex.orientLines[index].attachedDrawing;
+      if(newVertex == null){
+        return  [visitedAcc, animalPartsAcc];
+      }
+      var [newVisited, newParts] = findAnimal(newVertex, visited, animalParts);
+      visitedAcc = newVisited;
+      animalPartsAcc = newParts;
+      return [visitedAcc, animalPartsAcc];
+    }, [visited, animalParts]);
+
+  }
+  return [visited, animalParts];
 }
-
+function cleanUp(assemblage){
+  var visited = {};
+  assemblage.renderStack.forEach(drawing => visited[drawing.drawingID] = false);
+  var toDelete = {};
+  assemblage.renderStack.forEach((drawing) => {
+    if(visited[drawing.drawingID] == false){
+      var [newVisisted, animalParts] = findAnimal(drawing, visited, {hasHead: false, hasEnd: false, parts: {}});
+      visited = newVisisted;
+      if(!(animalParts.hasHead && animalParts.hasEnd)){
+     
+        toDelete = {...toDelete, ...animalParts.parts};
+        
+      };
+    }
+   
+  });
+  assemblage.renderStack = assemblage.renderStack.filter((drawing) => {
+    return !(drawing.drawingID in toDelete)
+  });
+  assemblageElement = visualize(assemblage);
+}
 function makeStack(assemblage, autoscale) {
   
   
@@ -312,16 +419,21 @@ function makeStack(assemblage, autoscale) {
     
         var newDrawingIndex = drawingOptionsIndexes.pop();
         var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
-        var newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
+        var newPoints =[];
+        if(!debug){
+          newPoints = shuffleArray((assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions));
+        } else{
+          newPoints = (assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions);
+        }
         while(newPoints.length > 0){
           var newPoint = newPoints.pop();
           var newDrawing = assemblage.deepCopies()[newDrawingIndex];
-          drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
-          const b = assemblage.checkIntersect(newDrawing);      
+          const scaleSuccesful = drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
+          const b = scaleSuccesful && assemblage.checkIntersect(newDrawing);      
           if(b){
             assemblage.addDrawingToAssemblage(newDrawing);
-            drawing.orientLines[i].attachedDrawing = [newDrawing, newPoint];
-            newDrawing.orientLines[newPoint].attachedDrawing = [drawing, i];
+            drawing.orientLines[i].attachedDrawing = newDrawing;
+            newDrawing.orientLines[newPoint].attachedDrawing = drawing;
           } else{
             newDrawing = null;
           }
@@ -341,6 +453,7 @@ function makeStack(assemblage, autoscale) {
 class Drawing {
 
   constructor (object, attachments, tileScale){
+    this.drawingID = null;
     this.lines = JSON.parse(JSON.stringify(object.getLayerAssembler("construction")));
     this.polygonBorder = JSON.parse(JSON.stringify(object.getLayerAssembler("border")));
     this.polygonBorder = this.polygonBorder.flat(1);
@@ -377,6 +490,7 @@ class Drawing {
     this.orientLabels = drawing.orientLabels;
     this.orientLines = drawing.orientLines ;
     this.attachments =  drawing.attachments;
+    this.drawingID = drawing.drawingID;
   }
   getRays(points){
   
@@ -495,7 +609,8 @@ class Drawing {
     const rotationAngle = (-1 * atan2Theta) + Math.PI;
   
     const tMat1 = translateMatrix(-1 * start.vector[0].x, -1 * start.vector[0].y);
-    const scMat = scaleMatrix(targetOrientMag/ startOrientMag,targetOrientMag/ startOrientMag);
+    const scaleFactor = targetOrientMag/ startOrientMag
+    const scMat = scaleMatrix(scaleFactor, scaleFactor);
     const rMat = rotationMatrix(rotationAngle);
     const tMat2 = translateMatrix(target.vector[0].x, target.vector[0].y);
     var matList = [];
@@ -512,7 +627,9 @@ class Drawing {
     }
   
     newDrawing.applyLambdaToLines(xformDrawing);
-    return;
+
+    // return true
+    return (autoscale === false) ||  (autoscale === true && (0.6 < scaleFactor && scaleFactor < 2.5));
 
   }
 }
@@ -554,14 +671,15 @@ function visualize(assemblage){
 function addRandomNewTree(assemblage, autoscale){
   // async function addRandomNewTree(assemblage, autoscale){
   
-  var initIndexes = assemblage.shuffledDrawingIndexes();
+  // var initIndexes = assemblage.shuffledDrawingIndexes();
+  var initIndexes = assemblage.baseIndexes();
   let drawingObj = null;
   let outside = true;
   while(outside && initIndexes.length > 0 ){
     drawingObj = assemblage.deepCopies()[initIndexes.pop()];
     const tx = (Math.random() * Math.abs(assemblage.bbox[1].x - assemblage.bbox[0].x)) + assemblage.bbox[0].x;
     const ty = (Math.random() * Math.abs(assemblage.bbox[1].y - assemblage.bbox[0].y)) + assemblage.bbox[0].y;
-    const thetaRand = (Math.random() * Math.PI);
+    const thetaRand = (Math.random() * 2 * Math.PI);
     const tMat = translateMatrix(tx, ty);
     const rMat = rotationMatrix(thetaRand);
     const composed = composeTransforms([rMat, tMat])
@@ -578,7 +696,7 @@ function addRandomNewTree(assemblage, autoscale){
   }
  
   assemblage.addDrawingToAssemblage(drawingObj);
-  console.log("hello");
+
   // assemblage = await makeStack(assemblage, autoscale);
   assemblage = makeStack(assemblage, autoscale);
   assemblage.addToHistory();
@@ -592,8 +710,7 @@ function assemblerSetup(drawings, attachments, width, height, tileScale){
   container.appendChild(element);
   var autoscale = document.getElementById("autoscale-check").checked;
   let assemblageObj = new Assemblage(drawings, recLim, attachments, width, height, tileScale);
-  console.log(assemblageObj)
-  console.log("hello");
+
   let [init, assemblage] = stackInit(assemblageObj);
   if(init){
     
@@ -611,7 +728,7 @@ function assemblerSetup(drawings, attachments, width, height, tileScale){
       console.log("adding new tree");
       addRandomNewTree(assemblage, autoscale);
       assemblage.fitToCanvas();
-      assemblerElement = visualize(assemblage);
+      // assemblerElement = visualize(assemblage);
     }
     document.getElementById("undo").onclick = () =>{
       assemblage.undo();
@@ -621,21 +738,32 @@ function assemblerSetup(drawings, attachments, width, height, tileScale){
       assemblage.redo();
       assemblerElement = visualize(assemblage);
     }
-    // automate
- 
+    // document.getElementById("clean-up").onclick = () =>  {
+    //   cleanUp(assemblage);
+
+    // }
     document.getElementById("automate").onclick = () =>{
-      var curLength = assemblage.renderStack.length;
-      const startLength = assemblage.renderStack.length
+      var intervalLength = assemblage.renderStack.length;
+      const startLength = assemblage.renderStack.length;
+      var pastLength = assemblage.renderStack.length;
       while(assemblage.renderStack.length < startLength + 1000){
         document.getElementById("add-tree").click();
+        // cleanUp(assemblage);
         assemblage.historyStack.pop();
-        if(assemblage.renderStack.length  - curLength > 50 ){
+        if(assemblage.renderStack.length < 1000 && assemblage.renderStack.length - pastLength < 15){
+          console.log('drawing stack',assemblage.drawingStack.length );
+          assemblage.renderStack = assemblage.renderStack.slice(0, pastLength);
+          console.log('renderStack stack',assemblage.renderStack.length );
+        }
+        pastLength  = assemblage.renderStack. length;
+        if(assemblage.renderStack.length - intervalLength > 50 ){
           assemblerElement = visualize(assemblage);
           document.getElementById("download-assemblage").click();
-          curLength = assemblage.renderStack.length ;
+          intervalLength = assemblage.renderStack.length ;
         }
       }
     }
+    
   }
   return element;
   

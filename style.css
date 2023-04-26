@@ -64,7 +64,7 @@ html, body
 .thumbnail-panel{
     display: grid;
     grid-auto-flow: column;
-    grid-template-rows: 400px 400px 400px;
+    grid-template-rows: 600px 600px 600px 600px 600px;
 }
 .svg-container {
     background-color: #384052;

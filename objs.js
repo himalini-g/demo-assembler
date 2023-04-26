@@ -59,6 +59,12 @@ class TextSVG {
         this.txt = txt;
         this.text_anchor = text_anchor;
     }
+    reflectOverX(){
+        this.point = {x: this.point.x, y: this.point.y * -1};
+    }
+    reflectOverY(){
+        this.point = {x: this.point.x * -1, y: this.point.y};
+    }
     addToParentElement(parent){
         if(parent.id in this.elements){
             return;
@@ -123,6 +129,17 @@ class Line {
         this.lineClosed = lineClosed;
         this.closePoint = null;
       
+    }
+    reflectOverX(){
+        this.points = this.points.map(point => {
+            return {x: point.x, y: point.y * -1};
+        });
+    }
+    reflectOverY(){
+        this.points = this.points.map(point => {
+            return {x: point.x * -1 , y: point.y};
+        });
+
     }
     addToParentElement(parent){
         if(parent.id in this.elements){

@@ -53,6 +53,44 @@ class Svg {
 		}
 		return [b, errorString];
 	}
+    reflectOverX(y = 0){
+        const vector = {
+            x: 0,
+            y: y
+        }
+        Object.entries(this.layers).forEach(([_, layer]) => {
+            Object.entries(layer).forEach(([_, line]) =>{
+                line.reflectOverX();
+                line.moveByVector(vector);
+                line.reRender();
+            });
+        });
+    
+        Object.entries(this.text).forEach(([_, elem])=> {
+            elem.reflectOverX();
+            elem.moveByVector(vector);
+            elem.reRender();
+        })
+    }
+    reflectOverY(x = 0){
+        const vector = {
+            y: 0,
+            x: x
+        }
+        Object.entries(this.layers).forEach(([_, layer]) => {
+            Object.entries(layer).forEach(([_, line]) =>{
+                line.reflectOverY();
+                line.moveByVector(vector);
+                line.reRender();
+            });
+        });
+    
+        Object.entries(this.text).forEach(([_, elem])=> {
+            elem.reflectOverY();
+            elem.moveByVector(vector);
+            elem.reRender();
+        })
+    }
     removeLabel(label){
         Object.entries(this.text).forEach(([key, text]) => {
             if(text.txt == label){

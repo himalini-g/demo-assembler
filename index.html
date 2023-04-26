@@ -27,7 +27,11 @@
           <button id="draw-button"> <i class="fa fa-pencil" aria-hidden="true"></i> draw</button>
           <button id="select-button"> <i class="fa fa-mouse-pointer" aria-hidden="true"></i> select</button>
           <button id="add-label">manage labels</button>
-          <button onclick="toggleDropdown()" id="assign-label" class="inactive">assign label</button>
+          <button onclick="reflectOverX()" id="reflect-x">reflect x</button>
+          <button onclick="reflectOverY()" id="reflect-y">reflect y</button>
+          <button onclick="toggleDropdown()" id="assign-label">assign label</button>
+          
+          
           <div class="dropdown">
             <div id="label-dropdown" class="dropdown-content">
             </div>
@@ -73,7 +77,7 @@
         <button id="undo"> undo</button>
         <button id="redo"> redo</button>
         <button id="automate"> automatate</button>
-        <button id="visualize">  visualize</button>
+        <!-- <button id="clean-up"> clean up</button> -->
         <button id="download-assemblage" onclick="downloadAssemblage()">  <i class="fa fa-download" aria-hidden="true"></i> download</button>
         <button onclick="downloadProject()">  <i class="fa fa-floppy-o" aria-hidden="true"></i> download project</button>
         <button onclick> <input type="file" id="load-project" onchange="loadJSON()" accept=".json"/> <i class="fa fa-cloud-upload" aria-hidden="true"></i> load project</button>
@@ -83,11 +87,12 @@
         </div>
        
       </div>
+      
+      <div id="assembler-svg-container" class="svg-container">
+      </div>
       <div id="thumbnail-container" class="thumbnail-panel">
         <div id="thumbnails">
         </div>
-      </div>
-      <div id="assembler-svg-container" class="svg-container">
       </div>
       
     </div>
