@@ -4,18 +4,6 @@ function setup(passedSVG=null){
     
    
 }
-var disableReRenderAssemblage = false
-async function rerenderAssemblage(){
-    if(!disableReRenderAssemblage){
-        disableReRenderAssemblage = true;
-        assemblerElement = await assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight, tileScale).then(
-            () => disableReRenderAssemblage = false
-        );
-    }
-    console.log(disableReRenderAssemblage);
-    
-}
-
 function SVGElement(boxWidth=600 , boxHeight=400,viewBoxWidth = 100, viewBoxHeight=75,  htmlClass="svg", id){
     var xmlns = "http://www.w3.org/2000/svg";
     var svgElem = document.createElementNS(xmlns, "svg");
@@ -166,42 +154,39 @@ async function parseJsonFile(file) {
       fileReader.readAsText(file)
     })
   }
-function loadPlants(){
-    if(!disableReRenderAssemblage){
-        $.getJSON("library/plants.json", function(json) {
-            plantsJSON = json; // this will show the info it in firebug console
-            console.log(plantsJSON)
-            thumbnailsobj.loadFile(plantsJSON, toParse=false);
-            rerenderAssemblage();
-        });
+var jsons = {robots: {
+    buttonID: "robots",
+    json: null,
+},
+organs: {
+    buttonID: "organs",
+    json: null,
+},
+plants: {
+    buttonID: "plants",
+    json: null,
+}}
+$.getJSON("library/plants.json", function(json) {
+    jsons["plants"].json = json;
+});
+$.getJSON("library/organs.json", function(json) {
+    jsons["organs"].json = json;
+});
+$.getJSON("library/robots.json", function(json) {
+    jsons["robots"].json = json;
+});
 
-    }
-   
-}
-function loadOrgans(){
+var disableReRenderAssemblage = false
+async function loadDemo(value){
     if(!disableReRenderAssemblage){
-        $.getJSON("library/organs.json", function(json) {
-            organsJSON = json; // this will show the info it in firebug console
-            console.log(organsJSON)
-            thumbnailsobj.loadFile(organsJSON, toParse=false);
-            rerenderAssemblage();
-        });
+        thumbnailsobj.loadFile(jsons[value].json, toParse=false);
+        disableReRenderAssemblage = true;
+        assemblerElement = await assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight, tileScale).then(
+            () => disableReRenderAssemblage = false
+        );
+    }
+}
 
-    }
-    
-}
-function loadRobots(){
-    if(!disableReRenderAssemblage){
-        $.getJSON("library/robots.json", function(json) {
-            robotsJSON = json; // this will show the info it in firebug console
-            console.log(robotsJSON)
-            thumbnailsobj.loadFile(robotsJSON, toParse=false);
-            rerenderAssemblage();
-        });
-    
-    }
-    
-}
 
 
 function saveTile(){
