@@ -233,7 +233,7 @@ function reset(){
 var tileCounter = 0;
 
 const pixelsInInch = 200;
-const assemblageWidthInches= 5;
+const assemblageWidthInches= 4.5;
 const assemblageHeightInches = 4.3; 
 
 const tileScale = 0.3;
