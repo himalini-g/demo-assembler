@@ -158,16 +158,24 @@ var jsons = {
 robots: {
     buttonID: "robots",
     json: null,
+    autoscale: false,
 },
 organs: {
     buttonID: "organs",
     json: null,
+    autoscale: false,
 },
 plants: {
     buttonID: "plants",
     json: null,
+    autoscale: true,
+},
+mushrooms: {
+    buttonID: "mushrooms",
+    json: null,
+    autoscale: true,
 }};
-$.getJSON("library/plants.json", function(json) {
+$.getJSON("library/plants2.json", function(json) {
     jsons["plants"].json = json;
 });
 $.getJSON("library/organs.json", function(json) {
@@ -176,16 +184,21 @@ $.getJSON("library/organs.json", function(json) {
 $.getJSON("library/robots.json", function(json) {
     jsons["robots"].json = json;
 });
+$.getJSON("library/mushrooms.json", function(json) {
+    jsons["mushrooms"].json = json;
+});
+
 
 var disableReRenderAssemblage = false;
 async function loadDemo(value){
-    if(!disableReRenderAssemblage){
+    // if(!disableReRenderAssemblage){
+        var thumbnailsobj = new Thumbnails(width, height, thumbnailWidth, thumbnailHeight, thumbnailDivClass, thumbnailDivID, trashicon,savefileicon, editicon, layerthumbnails.destroyLambda, sessionStorageKey );
         thumbnailsobj.loadFile(jsons[value].json, toParse=false);
         disableReRenderAssemblage = true;
-        assemblerElement = await assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight, tileScale).then(
+        assemblerElement = await assemblerSetup(thumbnailsobj.export(), labelmanager.export(), assemblageWidth, assemblageHeight, tileScale, jsons[value].autoscale).then(
             () => disableReRenderAssemblage = false
         );
-    }
+    // }
 }
 document.getElementById("organs").addEventListener("touchstart",async () => {
     loadDemo("organs")
@@ -220,8 +233,8 @@ function reset(){
 var tileCounter = 0;
 
 const pixelsInInch = 200;
-const assemblageWidthInches= 3;
-const assemblageHeightInches = 3; 
+const assemblageWidthInches= 5;
+const assemblageHeightInches = 4.3; 
 
 const tileScale = 0.3;
 

@@ -56,6 +56,7 @@ class Assemblage{
     this.current = 0;
     this.historyStack = [];
     this.uniqueId = 0;
+    this.halt = false;
 
   }
   addToHistory(){
@@ -152,6 +153,11 @@ class Assemblage{
       return this.referenceDrawingJsons.map((_, index)=>index);
     }
   }
+  popFromAssemblage(){
+    this.renderStack.pop();
+    this.drawingStack.shift();
+
+  }
   
   addDrawingToAssemblage(drawing){
     drawing.drawingID = this.uniqueId;
@@ -221,11 +227,26 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 async function demoMakeStack(assemblage, autoscale) {
+  
   return new Promise(async (resolve) => {
+    if(assemblage.halt){
+      resolve(assemblage);
+  
+    }
+    var assemblagePop = false;
   
     //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
     
     while(assemblage.drawingStack.length > 0 && assemblage.recursiveLimit > 0 ){
+      if(assemblage.halt){
+        resolve(assemblage);
+        return;      
+      }
+      if(assemblagePop){
+        assemblagePop = false;
+        assemblage.popFromAssemblage();
+
+      }
       // pops a drawings off the stack
       var drawing = assemblage.drawingStack.pop(0);
       
@@ -235,7 +256,11 @@ async function demoMakeStack(assemblage, autoscale) {
       
         var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
         while(drawing.orientLines[i].attachedDrawing == null && drawingOptionsIndexes.length  > 0 ){
-      
+          if(assemblage.halt){
+            resolve(assemblage);
+            return;      
+          }
+          
           var newDrawingIndex = drawingOptionsIndexes.pop();
           var labelOptions = assemblage.attachments[drawing.orientLines[i].label]
           var newPoints = [];
@@ -251,15 +276,40 @@ async function demoMakeStack(assemblage, autoscale) {
             drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
 
             const scaleSuccesful = drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
-            const b = scaleSuccesful && assemblage.checkIntersect(newDrawing);      
+            const intersect = assemblage.checkIntersect(newDrawing); 
+            const b = scaleSuccesful && assemblage.checkIntersect(newDrawing); 
+    
+
+            if(assemblage.halt){
+        
+              resolve(assemblage);
+              return;      
+            }
+            if(assemblagePop){
+              assemblagePop = false;
+              assemblage.popFromAssemblage();
+
+            }
+          
             if(b){
               assemblage.addDrawingToAssemblage(newDrawing);
               drawing.orientLines[i].attachedDrawing = newDrawing;
               newDrawing.orientLines[newPoint].attachedDrawing = drawing;
               assemblage.fitToCanvas();
+              if(assemblage.halt){
+      
+                resolve(assemblage);
+                return;      
+              }
               assemblerElement = await asyncVisualize(assemblage);
               await sleep(1)
             } else{
+              if(!assemblagePop){
+                assemblagePop = true
+                assemblage.addDrawingToAssemblage(newDrawing);
+                assemblerElement = await asyncVisualize(assemblage);
+                await sleep(1)
+              }
               newDrawing = null;
             }
 
@@ -269,6 +319,10 @@ async function demoMakeStack(assemblage, autoscale) {
       }
       assemblage.recursiveLimit -= 1;
       
+    }
+    if(assemblagePop){
+      assemblage.popFromAssemblage();
+
     }
 
     console.log("end stack");
@@ -504,8 +558,8 @@ class Drawing {
   
     newDrawing.applyLambdaToLines(xformDrawing);
 
-    // return true
-    return (autoscale === false) ||  (autoscale === true && (0.6 < scaleFactor && scaleFactor < 2.5));
+    return true
+    // return (autoscale === false) ||  (autoscale === true && (0.1 < scaleFactor && scaleFactor < 2.5));
 
   }
 }
@@ -578,26 +632,40 @@ async function addRandomNewTree(assemblage, autoscale){
   assemblage.addToHistory();
   return;
 }
-var disableAddMoreAssemblage = false
-async function assemblerSetup(drawings, attachments, width, height, tileScale){
+var disableAddMoreAssemblage = false;
+var assemblerList = [];
+var assemblerID = 0;
+async function assemblerSetup(drawings, attachments, width, height, tileScale, autoscale=true){
   const assemblageSVGId = "assembler-svg";
   var container = document.getElementById("assembler-svg-container");
   container.innerHTML = ""
   var element = SVGElement(width, height, width, height, "svg", assemblageSVGId);
   container.appendChild(element);
-  var autoscale = true;
   let assemblageObj = new Assemblage(drawings, recLim, attachments, width, height, tileScale);
 
   let [init, assemblage] = stackInit(assemblageObj);
   if(init){
-    
+    assemblerList = assemblerList.map(item => {
+      item.halt = true;
+      return item;
+    });
+    console.log(assemblerList);
+    assemblage.uniqueID = assemblerID;
+    assemblerID += 1;
+
+    assemblerList.push(assemblage);
 
     assemblage = await demoMakeStack(assemblage, autoscale);
+    
+    assemblerList.splice(assemblerList.indexOf(assemblage), 1);
+   
+    
     assemblage.fitToCanvas();
     assemblage.setRect();
+    
 
-    var element = await asyncVisualize(assemblage);
-    assemblage.addToHistory();
+    // var element = await asyncVisualize(assemblage);
+    // assemblage.addToHistory();
     const addTree =  async () => {
       if(!disableAddMoreAssemblage){
         disableAddMoreAssemblage = true;
