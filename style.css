@@ -40,7 +40,7 @@ html, body
 .drawing-panel {
   width: 250px;
   display: flex;
-  padding: 10px 10px 10px 50px;
+  padding: 10px 10px 10px 30px;
   flex-direction: column;
   flex-wrap: nowrap;
   justify-content: flex-start;
