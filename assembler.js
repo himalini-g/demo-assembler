@@ -302,7 +302,7 @@ async function demoMakeStack(assemblage, autoscale) {
                 return;      
               }
               assemblerElement = await asyncVisualize(assemblage);
-              await sleep(1)
+              await sleep(5)
             } else{
               if(!assemblagePop){
                 assemblagePop = true
