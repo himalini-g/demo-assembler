@@ -21,13 +21,13 @@ function inside(point, vs) {
   return inside;
 };
 
-function draw(assemblage, visualize=false){
+function draw(assemblage){
     var polyLines = [];
     for(var l = 0; l< assemblage.renderStack.length; l++){
         var drawing = assemblage.renderStack[l];
         polyLines.push(...drawing.getLines());
     }
-    if(assemblage.tempDrawing != null && visualize){
+    if(assemblage.tempDrawing != null){
       polyLines.push(...assemblage.tempDrawing.getLines());
     }
     return polyLines;
@@ -66,7 +66,7 @@ class Assemblage{
       drawingStack: this.drawingStack,
       renderStack: this.renderStack,
     }));
-    console.log(this.renderStack.length);
+
   }
   redo(){
     
@@ -84,8 +84,7 @@ class Assemblage{
       copy.fromHistory(drawing);
       return copy;
     });
-    console.log(this.renderStack.length);
-   
+
   }
   undo(){
     this.current = Math.max(0, this.current - 1);
@@ -102,7 +101,7 @@ class Assemblage{
       copy.fromHistory(drawing);
       return copy;
     });
-    console.log(this.renderStack.length);
+
     
     return;
   }
@@ -153,17 +152,14 @@ class Assemblage{
       return this.referenceDrawingJsons.map((_, index)=>index);
     }
   }
-  popFromAssemblage(){
-    this.renderStack.pop();
-    this.drawingStack.shift();
 
-  }
   
   addDrawingToAssemblage(drawing){
     drawing.drawingID = this.uniqueId;
     this.uniqueId += 1;
     this.renderStack.push(drawing);
     this.drawingStack.unshift(drawing);
+
   }
   getPolygonBorders(){
     var borders = this.renderStack.map(drawing => drawing.polygonBorder);
@@ -233,7 +229,7 @@ async function demoMakeStack(assemblage, autoscale) {
       resolve(assemblage);
   
     }
-    var assemblagePop = false;
+
   
     //caps recursive limit on drawing fitting incase loops forever (probabilistically can happen)
     
@@ -241,11 +237,6 @@ async function demoMakeStack(assemblage, autoscale) {
       if(assemblage.halt){
         resolve(assemblage);
         return;      
-      }
-      if(assemblagePop){
-        assemblagePop = false;
-        assemblage.popFromAssemblage();
-
       }
       // pops a drawings off the stack
       var drawing = assemblage.drawingStack.pop(0);
@@ -269,6 +260,7 @@ async function demoMakeStack(assemblage, autoscale) {
           } else{
             newPoints = (assemblage.deepCopies()[newDrawingIndex]).getOrientIndexOptions(labelOptions);
           }
+          
 
           while(newPoints.length > 0){
             var newPoint = newPoints.pop();
@@ -278,19 +270,14 @@ async function demoMakeStack(assemblage, autoscale) {
             const scaleSuccesful = drawing.finewDrawing(newDrawing, i, newPoint, autoscale);
             const intersect = assemblage.checkIntersect(newDrawing); 
             const b = scaleSuccesful && assemblage.checkIntersect(newDrawing); 
-    
+
 
             if(assemblage.halt){
         
               resolve(assemblage);
               return;      
             }
-            if(assemblagePop){
-              assemblagePop = false;
-              assemblage.popFromAssemblage();
-
-            }
-          
+           
             if(b){
               assemblage.addDrawingToAssemblage(newDrawing);
               drawing.orientLines[i].attachedDrawing = newDrawing;
@@ -304,12 +291,12 @@ async function demoMakeStack(assemblage, autoscale) {
               assemblerElement = await asyncVisualize(assemblage);
               await sleep(5)
             } else{
-              if(!assemblagePop){
-                assemblagePop = true
-                assemblage.addDrawingToAssemblage(newDrawing);
-                assemblerElement = await asyncVisualize(assemblage);
-                await sleep(1)
-              }
+
+              assemblage.tempDrawing = newDrawing;
+              assemblage.fitToCanvas();
+              assemblerElement = await asyncVisualize(assemblage);
+              await sleep(1)
+              
               newDrawing = null;
             }
 
@@ -317,15 +304,13 @@ async function demoMakeStack(assemblage, autoscale) {
         
         }
       }
-      assemblage.recursiveLimit -= 1;
-      
+      assemblage.recursiveLimit -= 1;      
     }
-    if(assemblagePop){
-      assemblage.popFromAssemblage();
-
-    }
-
-    console.log("end stack");
+    
+    
+    assemblage.tempDrawing = null;
+    assemblage.fitToCanvas();
+    assemblerElement = await asyncVisualize(assemblage);
     resolve(assemblage);
     return;
   });
@@ -620,7 +605,7 @@ async function addRandomNewTree(assemblage, autoscale){
     outside = !assemblage.checkIntersect(drawingObj);    
   }
   if(outside){
-    console.log("returning!!")
+
     return;
     
   }
@@ -649,7 +634,7 @@ async function assemblerSetup(drawings, attachments, width, height, tileScale, a
       item.halt = true;
       return item;
     });
-    console.log(assemblerList);
+
     assemblage.uniqueID = assemblerID;
     assemblerID += 1;
 
@@ -670,7 +655,7 @@ async function assemblerSetup(drawings, attachments, width, height, tileScale, a
       if(!disableAddMoreAssemblage){
         disableAddMoreAssemblage = true;
         assemblage.recursiveLimit = recLim;
-        console.log("adding new tree");
+   
         addRandomNewTree(assemblage, autoscale);
         assemblage.fitToCanvas();
         assemblerElement = await asyncVisualize(assemblage).then(
