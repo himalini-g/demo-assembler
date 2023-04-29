@@ -289,11 +289,11 @@ async function demoMakeStack(assemblage, autoscale) {
                 return;      
               }
               assemblerElement = await asyncVisualize(assemblage);
-              await sleep(5)
+              await sleep(100)
             } else{
 
               assemblage.tempDrawing = newDrawing;
-              assemblage.fitToCanvas();
+              // assemblage.fitToCanvas();
               assemblerElement = await asyncVisualize(assemblage);
               await sleep(1)
               
