@@ -243,6 +243,7 @@ async function demoMakeStack(assemblage, autoscale) {
       
       // goes through each of the openings of the drawing
       for(var i = 0; i < drawing.orientLines.length; i++){
+        
         //exhausts list of drawings
       
         var drawingOptionsIndexes = assemblage.shuffledDrawingIndexes();
@@ -279,6 +280,7 @@ async function demoMakeStack(assemblage, autoscale) {
             }
            
             if(b){
+              assemblage.tempDrawing = null;
               assemblage.addDrawingToAssemblage(newDrawing);
               drawing.orientLines[i].attachedDrawing = newDrawing;
               newDrawing.orientLines[newPoint].attachedDrawing = drawing;
@@ -295,7 +297,7 @@ async function demoMakeStack(assemblage, autoscale) {
               assemblage.tempDrawing = newDrawing;
               // assemblage.fitToCanvas();
               assemblerElement = await asyncVisualize(assemblage);
-              await sleep(1)
+              await sleep(2)
               
               newDrawing = null;
             }
