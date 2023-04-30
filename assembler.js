@@ -142,8 +142,11 @@ class Assemblage{
     indices = indices.filter(index => {
       return copies[index].orientLines.length > 2;
     });
-    return indices;
+    if(indices.length > 2){
+      return shuffleArray(indices);
+    }
 
+    return this.shuffledDrawingIndexes();
   }
   shuffledDrawingIndexes(){
     if(!debug){

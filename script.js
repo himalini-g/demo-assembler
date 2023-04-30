@@ -241,8 +241,8 @@ const tileScale = 0.3;
 
 const assemblageWidth = Math.trunc(pixelsInInch * assemblageWidthInches);
 const assemblageHeight = Math.trunc(pixelsInInch * assemblageHeightInches);
-const width = 6 * pixelsInInch;
-const height = 6 * pixelsInInch;
+const width = 3 * pixelsInInch;
+const height = 3 * pixelsInInch;
 const thumbnailHeight = Math.ceil(height / 4);
 const thumbnailWidth = Math.ceil(width / 4);
 const thumbnailDivClass = "thumbnail-container"
